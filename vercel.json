@@ -1,1 +1,11 @@
-{\"buildCommand\":\"npm run build\",\"outputDirectory\":\".\",\"installCommand\":\"npm install\"} 
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
