@@ -2393,28 +2393,37 @@ export class GrowGardenModule {
     const delivered = orders.filter((order) => order.deliveryStatus === 'delivered' || order.orderStatus === 'delivered').length;
     const activeProducts = this.storeProducts.filter((product) => !this.isSoldOut(product)).length;
     const supportUnread = this.supportService.getAdminUnreadCount();
-    const section = createElement('div', { class: 'store-panel panel' }, [
-      createElement('div', { class: 'admin-order-top' }, [
-        createElement('div', {}, [
-          createElement('span', { class: 'garden-kicker' }, 'Operacao da loja'),
-          createElement('h2', {}, 'Painel administrativo')
+    const section = createElement('div', { class: 'store-panel panel admin-dashboard-shell' }, [
+      createElement('header', { class: 'admin-dashboard-header' }, [
+        createElement('button', { type: 'button', class: 'admin-back-button', 'data-action': 'admin-back', 'aria-label': 'Voltar ao portal' }, [
+          createElement('span', { class: 'admin-back-icon', 'aria-hidden': 'true' }, ''),
+          createElement('span', {}, 'Voltar')
         ]),
-        createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'admin-logout' }, 'Sair do Admin')
+        createElement('div', { class: 'admin-header-copy' }, [
+          createElement('span', { class: 'garden-kicker' }, 'Central de operacoes'),
+          createElement('h2', {}, 'Painel Administrativo'),
+          createElement('p', {}, 'Gerencie pedidos, estoque, suporte e descontos da Thur Blox')
+        ]),
+        createElement('div', { class: 'admin-header-account' }, [
+          createElement('span', { class: 'admin-store-active' }, 'Loja ativa'),
+          createElement('small', {}, this.adminAccess.email || this.adminSession?.email || 'admin'),
+          createElement('button', { type: 'button', class: 'button-secondary admin-logout-button', 'data-action': 'admin-logout' }, 'Sair do Admin')
+        ])
       ]),
-      createElement('p', {}, `Sessao administrativa local para ${this.adminAccess.email || this.adminSession?.email || 'admin'}. Este controle deve ser validado em backend/Supabase antes de producao.`),
       createElement('div', { class: 'admin-status-grid' }, [
-        this.buildAdminStatCard('Total de pedidos', String(orders.length)),
-        this.buildAdminStatCard('Pendentes', String(pending)),
-        this.buildAdminStatCard('Pagos', String(paid)),
-        this.buildAdminStatCard('Entregues', String(delivered)),
-        this.buildAdminStatCard('Produtos ativos', String(activeProducts)),
-        this.buildAdminStatCard('Cupons ativos', String(this.coupons.filter((coupon) => coupon.active === true).length)),
-        this.buildAdminStatCard('Novas mensagens', String(supportUnread))
+        this.buildAdminStatCard('Total de pedidos', String(orders.length), 'Todos os pedidos registrados', 'orders'),
+        this.buildAdminStatCard('Pendentes', String(pending), 'Aguardando pagamento', 'pending'),
+        this.buildAdminStatCard('Pagos', String(paid), 'Pagamentos confirmados', 'paid'),
+        this.buildAdminStatCard('Entregues', String(delivered), 'Pedidos finalizados', 'delivered'),
+        this.buildAdminStatCard('Produtos ativos', String(activeProducts), 'Itens disponiveis na loja', 'products'),
+        this.buildAdminStatCard('Cupons ativos', String(this.coupons.filter((coupon) => coupon.active === true).length), 'Descontos disponiveis', 'coupons'),
+        this.buildAdminStatCard('Novas mensagens', String(supportUnread), 'Conversas aguardando leitura', 'messages')
       ]),
       this.buildAdminPanelTabs(),
       this.buildAdminPanelContent()
     ]);
     section.querySelector('[data-action="go-home-login"]')?.addEventListener('click', () => this.onNavigate('home'));
+    section.querySelector('[data-action="admin-back"]')?.addEventListener('click', () => this.onNavigate('home'));
     section.querySelector('[data-action="admin-logout"]').addEventListener('click', () => this.logoutAdmin());
     section.querySelectorAll('[data-admin-panel-tab]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -2433,11 +2442,15 @@ export class GrowGardenModule {
       ['products', 'Produtos'],
       ['discounts', 'Descontos']
     ];
-    return createElement('nav', { class: 'admin-panel-tabs' }, tabs.map(([id, label]) => createElement('button', {
+    return createElement('nav', { class: 'admin-panel-tabs', 'aria-label': 'Secoes administrativas' }, tabs.map(([id, label]) => createElement('button', {
       type: 'button',
-      class: `tab-button ${this.adminPanelTab === id ? 'active' : ''}`,
-      'data-admin-panel-tab': id
-    }, label)));
+      class: `tab-button admin-tab-${id} ${this.adminPanelTab === id ? 'active' : ''}`,
+      'data-admin-panel-tab': id,
+      'aria-current': this.adminPanelTab === id ? 'page' : null
+    }, [
+      createElement('span', { class: 'admin-tab-icon', 'aria-hidden': 'true' }, ''),
+      createElement('span', {}, label)
+    ])));
   }
 
   buildAdminPanelContent() {
@@ -2467,10 +2480,14 @@ export class GrowGardenModule {
     ]);
   }
 
-  buildAdminStatCard(label, value) {
-    return createElement('span', { class: 'admin-stat-card' }, [
-      createElement('small', {}, label),
-      createElement('strong', {}, value)
+  buildAdminStatCard(label, value, description = '', icon = 'orders') {
+    return createElement('article', { class: `admin-stat-card admin-stat-${icon}` }, [
+      createElement('span', { class: 'admin-stat-icon', 'aria-hidden': 'true' }, ''),
+      createElement('div', {}, [
+        createElement('small', {}, label),
+        createElement('strong', {}, value),
+        createElement('p', {}, description)
+      ])
     ]);
   }
 
@@ -3257,8 +3274,9 @@ export class GrowGardenModule {
       this.supportAdminMessage ? createElement('p', { class: 'support-admin-notice' }, this.supportAdminMessage) : null,
       conversations.length === 0
         ? createElement('div', { class: 'admin-support-empty' }, [
+          createElement('span', { class: 'admin-empty-chat-icon', 'aria-hidden': 'true' }, ''),
           createElement('strong', {}, 'Nenhuma mensagem ainda'),
-          createElement('p', {}, 'Quando um cliente chamar no chat, a conversa aparece aqui.')
+          createElement('p', {}, 'Quando um cliente chamar no chat, a conversa aparecera aqui.')
         ])
         : createElement('div', { class: 'admin-support-layout' }, [
           createElement('div', { class: 'admin-support-list' }, conversations.map((conversation) => this.buildAdminSupportConversationCard(conversation, conversation.id === selectedId))),
@@ -3296,7 +3314,8 @@ export class GrowGardenModule {
         unread ? createElement('b', {}, String(unread)) : null,
         createElement('small', {}, this.formatSupportDate(conversation.updatedAt)),
         createElement('span', { class: 'status-pill' }, SUPPORT_STATUS_LABELS[conversation.status] || conversation.status)
-      ])
+      ]),
+      createElement('span', { class: 'admin-support-open-label' }, 'Abrir conversa')
     ]);
   }
 

@@ -919,6 +919,26 @@ test('SupportService persists conversations and admin replies locally', () => {
   assert.throws(() => service.sendMessage(conversation.id, { body: 'x'.repeat(SUPPORT_MESSAGE_MAX_LENGTH + 1) }), /maximo/);
 });
 
+test('SupportService accepts a conversation with only name and message', () => {
+  const storage = createMemoryStorage();
+  const service = new SupportService({ storage, now: () => '2026-07-19T12:00:00.000Z' });
+  const conversation = service.createConversation({ customerName: 'Cliente sem contato' });
+
+  service.sendMessage(conversation.id, {
+    senderType: 'customer',
+    senderName: conversation.customerName,
+    body: 'Mensagem sem email e sem nick.'
+  });
+
+  const restoredService = new SupportService({ storage });
+  const restored = restoredService.getActiveConversation();
+  assert.equal(restored.customerEmail, '');
+  assert.equal(restored.robloxUsername, '');
+  assert.equal(restored.messages.at(-1).body, 'Mensagem sem email e sem nick.');
+  assert.equal(restoredService.listAdminConversations()[0].id, conversation.id);
+  assert.equal(restoredService.getAdminUnreadCount(), 1);
+});
+
 test('AdminAuthService accepts only authorized admin email before storing a session', async () => {
   const storage = createMemoryStorage();
   const service = new AdminAuthService({ storage, now: () => 1000 });

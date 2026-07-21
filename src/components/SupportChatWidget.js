@@ -9,6 +9,7 @@ export class SupportChatWidget {
     this.service = service;
     this.open = false;
     this.error = '';
+    this.status = '';
     this.element = null;
     this.handleStorageSync = () => {
       if (this.open) this.replace();
@@ -68,6 +69,7 @@ export class SupportChatWidget {
       ]),
       createElement('div', { class: 'support-panel-body' }, [
         this.error ? createElement('p', { class: 'support-error' }, this.error) : null,
+        this.status ? createElement('p', { class: 'support-success', role: 'status' }, this.status) : null,
         conversation ? this.buildConversation(conversation) : this.buildStarter()
       ])
     ]);
@@ -77,7 +79,7 @@ export class SupportChatWidget {
     const block = createElement('div', { class: 'support-starter' }, [
       this.buildSupportBubble('Olá! Como posso ajudar você? 😊'),
       createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
-      createElement('form', { class: 'support-start-form' }, [
+      createElement('form', { class: 'support-start-form', novalidate: 'novalidate' }, [
         this.buildField('Seu nome', 'customerName', 'text', true),
         this.buildField('Email (opcional)', 'customerEmail', 'email', false),
         this.buildField('Nick Roblox (opcional)', 'robloxUsername', 'text', false),
@@ -90,13 +92,15 @@ export class SupportChatWidget {
             placeholder: 'Escreva sua mensagem...'
           })
         ]),
-        createElement('button', { type: 'submit', class: 'support-send-wide' }, [
-          createElement('span', {}, 'Iniciar atendimento'),
+        createElement('button', { type: 'submit', class: 'support-send-wide', disabled: 'disabled' }, [
+          createElement('span', {}, 'Enviar mensagem'),
           createElement('span', { class: 'support-send-arrow', 'aria-hidden': 'true' }, '')
         ])
       ])
     ]);
-    block.querySelector('form').addEventListener('submit', (event) => this.submitStarter(event));
+    const form = block.querySelector('form');
+    form.addEventListener('submit', (event) => this.submitStarter(event));
+    form.addEventListener('input', () => this.updateSubmitState(form));
     return block;
   }
 
@@ -108,20 +112,20 @@ export class SupportChatWidget {
       createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
       closed
         ? createElement('p', { class: 'support-closed-note' }, 'Esta conversa foi fechada pelo suporte.')
-        : createElement('form', { class: 'support-compose' }, [
+        : createElement('form', { class: 'support-compose', novalidate: 'novalidate' }, [
           createElement('textarea', {
             name: 'message',
             maxlength: String(SUPPORT_MESSAGE_MAX_LENGTH),
             required: 'required',
             placeholder: 'Escreva sua mensagem...'
           }),
-          createElement('button', { type: 'submit', class: 'support-send-button', 'aria-label': 'Enviar mensagem' }, [
-            createElement('span', { class: 'support-send-arrow', 'aria-hidden': 'true' }, '')
-          ])
+          createElement('button', { type: 'submit', class: 'support-send-button', disabled: 'disabled' }, 'Enviar mensagem')
         ]),
       createElement('small', { class: 'support-powered' }, 'Suporte Thur Blox')
     ]);
-    area.querySelector('form')?.addEventListener('submit', (event) => this.sendCustomerMessage(event, conversation.id, conversation.customerName));
+    const form = area.querySelector('form');
+    form?.addEventListener('submit', (event) => this.sendCustomerMessage(event, conversation.id, conversation.customerName));
+    form?.addEventListener('input', () => this.updateSubmitState(form));
     return area;
   }
 
@@ -170,25 +174,35 @@ export class SupportChatWidget {
   closePanel() {
     this.open = false;
     this.error = '';
+    this.status = '';
     this.replace();
   }
 
   submitStarter(event) {
     event.preventDefault();
     this.error = '';
+    this.status = '';
     const data = new FormData(event.currentTarget);
+    const customerName = String(data.get('customerName') || '').trim();
+    const message = String(data.get('message') || '').trim();
+    if (!customerName || !message) {
+      this.error = 'Preencha seu nome e sua mensagem para chamar o suporte.';
+      this.replace();
+      return;
+    }
     try {
       const conversation = this.service.createConversation({
-        customerName: data.get('customerName'),
+        customerName,
         customerEmail: data.get('customerEmail'),
         robloxUsername: data.get('robloxUsername')
       });
       this.service.sendMessage(conversation.id, {
         senderType: 'customer',
         senderName: conversation.customerName,
-        body: data.get('message')
+        body: message
       });
       this.service.markAsRead(conversation.id, 'customer');
+      this.status = 'Mensagem enviada';
       this.replace();
     } catch (error) {
       this.error = error.message || 'Não foi possível iniciar o atendimento.';
@@ -199,18 +213,36 @@ export class SupportChatWidget {
   sendCustomerMessage(event, conversationId, customerName) {
     event.preventDefault();
     this.error = '';
+    this.status = '';
     const data = new FormData(event.currentTarget);
+    const message = String(data.get('message') || '').trim();
+    if (!message) {
+      this.error = 'Preencha seu nome e sua mensagem para chamar o suporte.';
+      this.replace();
+      return;
+    }
     try {
       this.service.sendMessage(conversationId, {
         senderType: 'customer',
         senderName: customerName,
-        body: data.get('message')
+        body: message
       });
+      event.currentTarget.reset();
+      this.status = 'Mensagem enviada';
       this.replace();
     } catch (error) {
       this.error = error.message || 'Não foi possível enviar a mensagem.';
       this.replace();
     }
+  }
+
+  updateSubmitState(form) {
+    const button = form?.querySelector('button[type="submit"]');
+    if (!button) return;
+    const messageFilled = Boolean(form.elements.message?.value.trim());
+    const nameFilled = form.classList.contains('support-compose')
+      || Boolean(form.elements.customerName?.value.trim());
+    button.disabled = !(nameFilled && messageFilled);
   }
 
   replace() {
