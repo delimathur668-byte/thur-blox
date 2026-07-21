@@ -127,9 +127,9 @@ test('app shell loads pets, mutations, market values and images', () => {
 });
 
 test('portal game cards use the correct game cover assets', () => {
-  assert.ok(homePortalCode.includes("'blox-fruits': '/assets/blox-fruits/blox-fruits-category.webp'"), 'Blox Fruits portal card should use its original category artwork');
+  assert.ok(homePortalCode.includes("'blox-fruits': '/assets/blox-fruits/blox-fruits-category-authorized.webp'"), 'Blox Fruits portal card should use the authorized BloxLegacy category asset');
   assert.ok(homePortalCode.includes("'grow-garden': '/assets/portal/grow-a-garden-2.webp'"), 'Grow a Garden portal card should use the Grow a Garden cover asset');
-  assert.ok(existsSync(resolve(projectRoot, 'assets', 'blox-fruits', 'blox-fruits-category.webp')), 'Blox Fruits portal cover must exist');
+  assert.ok(existsSync(resolve(projectRoot, 'assets', 'blox-fruits', 'blox-fruits-category-authorized.webp')), 'Blox Fruits portal cover must exist');
   assert.ok(existsSync(resolve(projectRoot, 'public', 'assets', 'portal', 'grow-a-garden-2.webp')), 'Grow a Garden portal cover must exist');
 });
 

@@ -7,7 +7,7 @@ import { SupportChatWidget } from './SupportChatWidget.js';
 import { createElement } from './ui-utils.js';
 
 const PORTAL_CARD_IMAGES = {
-  'blox-fruits': '/assets/blox-fruits/blox-fruits-category.webp',
+  'blox-fruits': '/assets/blox-fruits/blox-fruits-category-authorized.webp',
   'grow-garden': '/assets/portal/grow-a-garden-2.webp'
 };
 const APP_LOGO = '/assets/brand/delima-blox-logo.webp';
