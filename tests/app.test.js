@@ -111,14 +111,11 @@ const createMemoryStorage = () => {
   };
 };
 
-test('app shell loads pets, mutations, market values and images', () => {
+test('public app shell loads only active store modules', () => {
   assert(htmlContent.includes('THUR BLOX'), 'index.html must contain the app title');
-  assert(appCode.includes('src/data/brainrots.json'), 'app.js should load src/data/brainrots.json');
-  assert(appCode.includes('src/data/mutations.json'), 'app.js should load global mutations');
-  assert(appCode.includes('src/data/brainrot-real-trade-values.json'), 'app.js should load central real trade values');
-  assert(appCode.includes('src/data/brainrot/real-money-values.json'), 'app.js should load separate BRL commercial values');
-  assert(appCode.includes('BrainrotDataService.merge'), 'app.js must merge data before rendering');
-  assert(appCode.includes('src/data/brainrot-images.json'), 'app.js should load image index');
+  assert.equal(appCode.includes('src/data/brainrots.json'), false, 'public app must not load retired Brainrot data');
+  assert.ok(appCode.includes("storeGame: 'blox-fruits'"), 'public app must route Blox Fruits');
+  assert.ok(appCode.includes("state.currentView === 'grow-garden'"), 'public app must route Grow a Garden 2');
   assert(!new RegExp(removedFeature, 'i').test(appCode), 'app.js must not load removed feature data');
   assert(!new RegExp(removedFeature, 'i').test(componentCode), 'UI component must not expose removed feature flows');
   assert(appCode.includes('serviceWorker.register'), 'app.js should register the service worker');
@@ -137,13 +134,8 @@ test('Brainrot legacy stays internal while public routes return home', () => {
   assert.equal(typeof BRAINROT_MAINTENANCE_CONFIG.enabled, 'boolean');
   assert.ok(brainrotMaintenanceConfigCode.includes('BRAINROT_MAINTENANCE_CONFIG'), 'central maintenance config must exist');
   assert.ok(appCode.includes("return 'home'"), 'legacy public routes must return to the portal');
-  assert.ok(appCode.includes("await import('./src/components/BrainrotModule.js')"), 'Brainrot module must load only after the maintenance gate');
-  assert.ok(appCode.includes("await import('./src/services/BrainrotDataService.js')"), 'Brainrot data service must load only after the maintenance gate');
-  assert.ok(brainrotMaintenanceConfigCode.includes('Roube um Brainrot esta em manutencao'), 'maintenance config must show the requested title');
-  assert.ok(brainrotMaintenanceScreenCode.includes('Voltar ao portal'), 'maintenance screen must include a portal return action');
-  assert.ok(brainrotMaintenanceScreenCode.includes('Acessar Grow a Garden 2'), 'maintenance screen must keep Garden accessible');
-  assert.ok(homePortalCode.includes('withMaintenanceState'), 'portal card must render the maintenance state');
-  assert.ok(homePortalCode.includes('game-card-status'), 'portal card must show a visible maintenance badge');
+  assert.equal(appCode.includes("await import('./src/components/BrainrotModule.js')"), false, 'public app must not load the retired module');
+  assert.equal(homePortalCode.toLowerCase().includes('brainrot'), false, 'public portal source must not expose Brainrot');
   assert.ok(devServerCode.includes('isFrontendRoute'), 'dev server must route direct app URLs to index.html');
   assert.ok(devServerCode.includes('roube-um-brainrot'), 'direct Brainrot routes must be recognized');
 });
@@ -945,7 +937,7 @@ test('Blox Fruits category exposes five Pix products with isolated storefront in
 test('portal exposes FAQ, approved reviews and original THUR BLOX terms route', () => {
   assert.equal(homePortalCode.includes('buildFaqSection()'), true);
   assert.equal(homePortalCode.includes("review.status === 'approved'"), true);
-  assert.equal(homePortalCode.includes("this.onSelect('terms')"), true);
+  assert.equal(homePortalCode.includes("'data-footer-action': 'terms'"), true);
   assert.equal(appCode.includes("'/terms': 'terms'"), true);
   assert.equal(appCode.includes('new TermsPage'), true);
   assert.match(termsPageCode, /Entrega manual/);

@@ -31,6 +31,9 @@ const SUPPORT_ADMIN_AVATAR = '/assets/support/delima-blox-support-admin.png';
 const STORE_GAME_CONFIG = Object.freeze({
   'grow-garden-2': {
     title: 'Grow a Garden 2', subtitle: 'Loja de seeds, pets e gears', catalogLabel: 'Catalogo seeds',
+    heroTitle: 'Seeds, pets, gears e pacotes',
+    heroDescription: 'Escolha seus itens, aplique cupons e prepare seu pedido via Pix em uma loja segura e organizada.',
+    heroImage: '/assets/portal/grow-a-garden-2.webp',
     categories: [
       { key: 'seeds', title: 'SEEDS (GROW A GARDEN 2)', icon: '🌱' },
       { key: 'pets', title: 'PETS (GROW A GARDEN 2)', icon: '🔥' },
@@ -40,6 +43,9 @@ const STORE_GAME_CONFIG = Object.freeze({
   },
   'blox-fruits': {
     title: 'Blox Fruits', subtitle: 'Frutas, contas, gamepasses e serviços', catalogLabel: 'Segurança',
+    heroTitle: 'Frutas e vantagens para sua jornada',
+    heroDescription: 'Encontre frutas, contas, gamepasses, serviços e pacotes com pagamento via Pix e entrega combinada pelo suporte.',
+    heroImage: '/assets/blox-fruits/blox-fruits-category-authorized.webp',
     categories: [
       { key: 'fruits', title: 'FRUTAS', icon: '🍈' },
       { key: 'accounts', title: 'CONTAS', icon: '👤' },
@@ -276,19 +282,17 @@ export class GrowGardenModule {
   buildHero() {
     const hero = createElement('section', { class: 'garden-hero panel' }, [
       createElement('div', { class: 'garden-hero-copy' }, [
-        createElement('span', { class: 'garden-kicker' }, 'Grow a Garden 2'),
-        createElement('h1', {}, 'Encontre seeds, pets e gears'),
-        createElement('p', {}, 'Escolha seus itens, aplique cupons e prepare seu pedido via Pix em uma loja compacta, segura e organizada.'),
+        createElement('span', { class: 'garden-kicker' }, this.storeGameConfig.title),
+        createElement('h1', {}, this.storeGameConfig.heroTitle),
+        createElement('p', {}, this.storeGameConfig.heroDescription),
         createElement('div', { class: 'garden-hero-actions' }, [
           createElement('button', { type: 'button', class: 'button-primary', 'data-action': 'see-store' }, 'Explorar loja'),
-          createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'see-catalog' }, 'Ver catalogo')
+          createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'see-catalog' }, this.storeGameConfig.catalogLabel)
         ])
       ]),
       createElement('div', { class: 'garden-hero-art' }, [
         createElement('div', { class: 'garden-showcase' }, [
-          createElement('span', { class: 'garden-orbit seed' }, 'Seed'),
-          createElement('span', { class: 'garden-orbit pet' }, 'Pet'),
-          createElement('span', { class: 'garden-orbit gear' }, 'Gear'),
+          createElement('img', { class: 'category-hero-image', src: this.storeGameConfig.heroImage, alt: `Categoria ${this.storeGameConfig.title}` }),
           this.buildStoreStatusCard()
         ])
       ])
@@ -674,6 +678,7 @@ export class GrowGardenModule {
       .filter(Boolean);
 
     return createElement('div', { class: 'garden-storefront' }, [
+      this.buildHero(),
       this.buildStoreControls(),
       this.storeGame === 'blox-fruits' ? createElement('aside', { class: 'garden-welcome panel', role: 'note' }, [
         createElement('strong', {}, 'Compra segura'),
@@ -1659,6 +1664,11 @@ export class GrowGardenModule {
             createElement('small', {}, 'Total'),
             createElement('strong', { 'data-summary': 'total' }, formatMoney(totals.totalInCents, currency))
           ])
+        ]),
+        createElement('aside', { class: 'checkout-security-notice', role: 'note' }, [
+          createElement('strong', {}, 'Proteja sua conta'),
+          createElement('span', {}, 'Nunca envie sua senha, cookie ou código de autenticação do Roblox.'),
+          createElement('small', {}, 'A THUR/DELIMA BLOX não é afiliada oficialmente à Roblox ou a qualquer jogo citado.')
         ]),
         createElement('div', { class: 'checkout-actions checkout-pay-actions' }, [
           createElement('button', { type: 'submit', class: 'button-primary checkout-pay-button', 'data-pay-button': 'true' }, `Gerar pedido Pix - ${formatMoney(totals.totalInCents, currency)}`),

@@ -1,16 +1,8 @@
 import { GrowGardenModule } from './src/components/GrowGardenModule.js';
 import { HomePortal } from './src/components/HomePortal.js';
-import { BrainrotMaintenanceScreen } from './src/components/BrainrotMaintenanceScreen.js';
-import { BRAINROT_MAINTENANCE_CONFIG } from './src/config/brainrot-maintenance-config.js';
 import { AuthService } from './src/services/AuthService.js';
 import { TermsPage } from './src/components/TermsPage.js';
 
-const BRAINROTS_DATA_URL = 'src/data/brainrots.json';
-const MUTATIONS_DATA_URL = 'src/data/mutations.json';
-const MARKET_VALUES_DATA_URL = 'src/data/brainrot-real-trade-values.json';
-const REAL_MONEY_VALUES_DATA_URL = 'src/data/brainrot/real-money-values.json';
-const GAME_STATS_DATA_URL = 'src/data/brainrot-game-stats.json';
-const BRAINROT_IMAGES_DATA_URL = 'src/data/brainrot-images.json';
 const ROUTE_VIEW_MAP = Object.freeze({
   '/': 'home',
   '/brainrot': 'brainrot',
@@ -20,6 +12,7 @@ const ROUTE_VIEW_MAP = Object.freeze({
   '/category/blox-fruits': 'blox-fruits',
   '/grow-garden': 'grow-garden',
   '/grow-garden-2': 'grow-garden',
+  '/category/grow-a-garden-2': 'grow-garden',
   '/terms': 'terms',
   '/termos': 'terms',
   '/admin': 'admin',
@@ -35,22 +28,8 @@ const ROUTE_VIEW_MAP = Object.freeze({
   '/admin/cupons': 'admin'
 });
 
-const loadJson = async (url, fallback = []) => {
-  const response = await fetch(url, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Falha ao buscar ${url}`);
-  const data = await response.json();
-  return Array.isArray(data) ? data : fallback;
-};
-
-const loadJsonDocument = async (url, fallback = {}) => {
-  const response = await fetch(url, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Falha ao buscar ${url}`);
-  const data = await response.json();
-  return data && typeof data === 'object' && !Array.isArray(data) ? data : fallback;
-};
-
 const isBrainrotRoute = (value) => /^\/?(brainrot|brainrots|roube-um-brainrot)(\/|$)/i.test(String(value || ''));
-const isGrowGardenRoute = (value) => /^\/?(grow-garden|grow-garden-2)(\/|$)/i.test(String(value || ''));
+const isGrowGardenRoute = (value) => /^\/?(grow-garden|grow-garden-2|category\/grow-a-garden-2)(\/|$)/i.test(String(value || ''));
 const isBloxFruitsRoute = (value) => /^\/?(blox-fruits|category\/blox-fruits)(\/|$)/i.test(String(value || ''));
 const isAdminRoute = (value) => /^\/?(admin|painel|support-admin|orders-admin|stock-admin|suporte-admin|pedidos-admin|estoque|produtos-admin)(\/|$)/i.test(String(value || ''));
 
@@ -79,8 +58,8 @@ const getRequestedView = () => {
 
 const routeForView = (view) => {
   if (view === 'brainrot') return '/';
-  if (view === 'blox-fruits') return '/blox-fruits';
-  if (view === 'grow-garden') return '/grow-garden-2';
+  if (view === 'blox-fruits') return '/category/blox-fruits';
+  if (view === 'grow-garden') return '/category/grow-a-garden-2';
   if (view === 'admin') return '/admin';
   if (view === 'terms') return '/terms';
   return '/';
@@ -90,40 +69,6 @@ const setBrowserRoute = (view) => {
   const nextPath = routeForView(view);
   if (window.location.pathname === nextPath && !window.location.search && !window.location.hash) return;
   window.history.pushState({ view }, '', nextPath);
-};
-
-const loadBrainrotState = async () => {
-  const { BrainrotDataService } = await import('./src/services/BrainrotDataService.js');
-  const [rawBrainrots, mutations, marketValues, realMoneyValues, gameStats, brainrotImages] = await Promise.all([
-    loadJson(BRAINROTS_DATA_URL),
-    loadJson(MUTATIONS_DATA_URL),
-    loadJson(MARKET_VALUES_DATA_URL),
-    loadJsonDocument(REAL_MONEY_VALUES_DATA_URL, { currency: 'BRL', items: [] }),
-    loadJson(GAME_STATS_DATA_URL),
-    loadJson(BRAINROT_IMAGES_DATA_URL)
-  ]);
-
-  const { brainrots, diagnostics } = BrainrotDataService.merge({
-    brainrots: rawBrainrots,
-    marketValues,
-    gameStats,
-    images: brainrotImages
-  });
-  if (
-    diagnostics.emptySlugs.length
-    || diagnostics.duplicateSlugs.length
-    || diagnostics.valueWithoutPet.length
-    || diagnostics.nonNumericValues.length
-  ) {
-    console.warn('Diagnostico dos dados de Brainrots:', diagnostics);
-  }
-
-  return {
-    brainrots,
-    mutations,
-    realMoneyValues,
-    brainrotImages
-  };
 };
 
 const initialize = async () => {
@@ -136,8 +81,6 @@ const initialize = async () => {
   try {
     const state = {
       currentView: getRequestedView(),
-      brainrotLoaded: false,
-      brainrotData: null,
       authService: new AuthService()
     };
 
@@ -153,7 +96,6 @@ const initialize = async () => {
         new HomePortal({
           root,
           onSelect: navigate,
-          brainrotMaintenance: BRAINROT_MAINTENANCE_CONFIG,
           authService: state.authService
         });
       } else if (state.currentView === 'terms') {
@@ -164,7 +106,6 @@ const initialize = async () => {
           new HomePortal({
             root,
             onSelect: navigate,
-            brainrotMaintenance: BRAINROT_MAINTENANCE_CONFIG,
             authService: state.authService,
             initialLoginOpen: true,
             initialLoginRedirect: 'admin'
@@ -175,7 +116,6 @@ const initialize = async () => {
           new HomePortal({
             root,
             onSelect: navigate,
-            brainrotMaintenance: BRAINROT_MAINTENANCE_CONFIG,
             authService: state.authService,
             initialAccessDenied: true
           });
@@ -189,17 +129,6 @@ const initialize = async () => {
           adminSession,
           authService: state.authService
         });
-      } else if (state.currentView === 'brainrot') {
-        if (BRAINROT_MAINTENANCE_CONFIG.enabled) {
-          new BrainrotMaintenanceScreen({ root, onNavigate: navigate, config: BRAINROT_MAINTENANCE_CONFIG });
-          return;
-        }
-        if (!state.brainrotLoaded) {
-          state.brainrotData = await loadBrainrotState();
-          state.brainrotLoaded = true;
-        }
-        const { BrainrotModule } = await import('./src/components/BrainrotModule.js');
-        new BrainrotModule({ root, ...state.brainrotData, onNavigate: navigate });
       } else if (state.currentView === 'grow-garden') {
         new GrowGardenModule({ root, onNavigate: navigate, adminSession: state.authService.getSession(), authService: state.authService });
       } else if (state.currentView === 'blox-fruits') {

@@ -1,4 +1,3 @@
-import { BRAINROT_MAINTENANCE_CONFIG } from '../config/brainrot-maintenance-config.js';
 import { AuthService } from '../services/AuthService.js';
 import { ReviewService } from '../services/ReviewService.js';
 import { LocalOrderRepository } from '../services/grow-garden-2/LocalOrderRepository.js';
@@ -122,7 +121,7 @@ const GAME_CARDS = [
     subtitle: 'Veja seeds, pets, gears e pacotes disponíveis nesta categoria.',
     image: PORTAL_CARD_IMAGES['grow-garden'],
     alt: 'Capa do jogo Grow a Garden 2',
-    tags: ['Seeds', 'Pets', 'Gears'],
+    tags: ['Seeds', 'Pets', 'Gears', 'Pacotes', 'Firefly', 'Sun Bloom', 'Star Fruit'],
     action: 'Ver produtos',
     icon: 'GG',
     tone: 'garden'
@@ -148,34 +147,35 @@ const BENEFITS = [
 ];
 
 const FAQ_ITEMS = [
-  ['Como faço um pedido?', 'Escolha o produto, adicione ao carrinho e finalize o pagamento via Pix.'],
-  ['Qual o prazo de entrega?', 'A entrega é feita após a confirmação do pagamento, conforme disponibilidade do suporte.'],
-  ['Como funciona o suporte?', 'Nosso suporte funciona pelo chat do próprio site.'],
-  ['Preciso informar minha senha?', 'Não. Nunca pedimos senha, cookie ou código de autenticação.']
+  ['Como faço uma compra?', 'Escolha o produto, adicione ao carrinho e finalize o pagamento via Pix.'],
+  ['Quanto tempo demora a entrega?', 'A entrega acontece após a confirmação do pagamento, conforme disponibilidade do suporte.'],
+  ['Preciso informar minha senha?', 'Não. Nunca pedimos senha, cookie ou código de autenticação.'],
+  ['Como acompanho meu pedido?', 'Entre na sua conta e acesse Meus pedidos.'],
+  ['Como falo com o suporte?', 'Use o chat no canto da tela.']
 ];
 
 const CUSTOMER_REVIEWS = [
   {
     initials: 'LR',
-    name: 'Leonardo De Moura Ramos',
-    date: '19 de julho de 2026',
-    text: 'Barato. Entrega rápida. Muito bom. Ótimo suporte. Confiável. Voltarei a comprar.',
+    name: 'Cliente verificado',
+    date: 'Avaliação verificada',
+    text: 'Comprei e fui atendido rápido, site bem fácil de usar.',
     product: '20x HYPNO BLOOM SEED',
     productImage: '/assets/grow-a-garden-2/store/seeds/hypno-bloom-seed.webp'
   },
   {
     initials: 'EF',
-    name: 'Enzo Honorio Coelho Ferreira',
-    date: '19 de julho de 2026',
-    text: 'Confiável. Barato.',
+    name: 'Cliente verificado',
+    date: 'Avaliação verificada',
+    text: 'Suporte respondeu certinho e consegui acompanhar meu pedido.',
     product: '6x GHOST PEPPER SEED',
     productImage: '/assets/grow-a-garden-2/store/seeds/ghost-pepper-seed.webp'
   },
   {
     initials: 'MV',
-    name: 'Miguel Pereira Vilela',
-    date: '19 de julho de 2026',
-    text: 'Muito bom. Entrega rápida. Confiável. Voltarei a comprar. Ótimo suporte. Barato.',
+    name: 'Cliente verificado',
+    date: 'Avaliação verificada',
+    text: 'Checkout Pix simples e rápido.',
     product: '5x MOON BLOOM SEED',
     productSlug: '5x-moon-bloom-seed',
     productCategory: 'packages',
@@ -183,9 +183,9 @@ const CUSTOMER_REVIEWS = [
   },
   {
     initials: 'LR',
-    name: 'Leonardo De Moura Ramos',
-    date: '19 de julho de 2026',
-    text: 'Ótimo atendimento. Tudo certo e entrega rápida.',
+    name: 'Cliente verificado',
+    date: 'Avaliação verificada',
+    text: 'Pedido organizado e atendimento claro do começo ao fim.',
     product: '10x SUPER SPRINKLER',
     productImage: '/assets/grow-a-garden-2/store/gears/super-sprinkler.webp'
   },
@@ -199,9 +199,9 @@ const CUSTOMER_REVIEWS = [
   },
   {
     initials: 'MV',
-    name: 'Miguel Pereira Vilela',
-    date: '19 de julho de 2026',
-    text: 'Compra segura. Voltarei a comprar de novo.',
+    name: 'Cliente verificado',
+    date: 'Avaliação verificada',
+    text: 'Compra simples e suporte disponível quando precisei.',
     product: 'SUPER WATERING CAN',
     productImage: '/assets/grow-a-garden-2/store/gears/super-watering-can.webp'
   }
@@ -211,7 +211,6 @@ export class HomePortal {
   constructor({
     root,
     onSelect,
-    brainrotMaintenance = BRAINROT_MAINTENANCE_CONFIG,
     authService = new AuthService(),
     initialLoginOpen = false,
     initialLoginRedirect = null,
@@ -219,7 +218,6 @@ export class HomePortal {
   }) {
     this.root = root;
     this.onSelect = onSelect;
-    this.brainrotMaintenance = brainrotMaintenance;
     this.authService = authService;
     this.session = this.authService.getSession();
     this.currentUser = this.authService.getCurrentUser();
@@ -1357,8 +1355,8 @@ export class HomePortal {
           createElement('div', { class: 'portal-showcase-card garden-showcase-card' }, [
             createElement('img', { src: PORTAL_CARD_IMAGES['grow-garden'], alt: '', class: 'portal-showcase-image garden-showcase' })
           ]),
-          createElement('div', { class: 'portal-showcase-card brainrot-showcase-card' }, [
-            createElement('img', { src: PORTAL_CARD_IMAGES['blox-fruits'], alt: '', class: 'portal-showcase-image brainrot-showcase' })
+          createElement('div', { class: 'portal-showcase-card blox-fruits-showcase-card' }, [
+            createElement('img', { src: PORTAL_CARD_IMAGES['blox-fruits'], alt: '', class: 'portal-showcase-image blox-fruits-showcase' })
           ]),
           createElement('div', { class: 'portal-showcase-logo-card' }, [
             createElement('img', { src: APP_LOGO, alt: '', class: 'portal-showcase-logo' })
@@ -1384,24 +1382,13 @@ export class HomePortal {
   buildGamesSection() {
     const section = createElement('section', { class: 'portal-games', 'aria-labelledby': 'portal-games-title' }, [
       createElement('h2', { id: 'portal-games-title', class: 'visually-hidden' }, 'Categorias'),
-      createElement('div', { class: 'portal-game-grid' }, GAME_CARDS.map((card) => this.buildGameCard(this.withMaintenanceState(card)))),
+      createElement('div', { class: 'portal-game-grid' }, GAME_CARDS.map((card) => this.buildGameCard(card))),
       createElement('p', { class: 'portal-search-empty', hidden: 'hidden' }, 'Nenhuma categoria encontrada.')
     ]);
     this.gameSection = section.querySelector('.portal-game-grid');
     this.emptySearch = section.querySelector('.portal-search-empty');
     this.applyCategoryFilter();
     return section;
-  }
-
-  withMaintenanceState(card) {
-    if (card.slug !== 'brainrot' || !this.brainrotMaintenance.enabled) return card;
-    return {
-      ...card,
-      subtitle: this.brainrotMaintenance.cardMessage,
-      tags: ['Manutenção temporária', 'Dados preservados', 'Volta em breve'],
-      action: this.brainrotMaintenance.cardActionLabel,
-      maintenanceLabel: this.brainrotMaintenance.badgeLabel
-    };
   }
 
   buildGameCard({ slug, title, subtitle, image, alt, tags, action, icon, tone, maintenanceLabel }) {
@@ -1536,13 +1523,28 @@ export class HomePortal {
 
   buildFooter() {
     const footer = createElement('footer', { class: 'portal-footer' }, [
-      createElement('strong', {}, 'THUR BLOX'),
-      createElement('span', {}, 'Loja digital independente para produtos e utilidades de jogos.'),
-      createElement('span', {}, 'Não afiliado oficialmente ao Roblox ou aos criadores dos jogos.'),
-      createElement('button', { type: 'button', class: 'portal-footer-link', 'data-action': 'open-terms' }, 'Termos e condições'),
-      createElement('span', {}, String(new Date().getFullYear()))
+      createElement('div', { class: 'portal-footer-brand' }, [
+        createElement('strong', {}, 'THUR BLOX / DELIMA BLOX'),
+        createElement('span', {}, 'Produtos digitais dos seus jogos favoritos em um só lugar.'),
+        createElement('small', {}, 'Loja independente. Não somos afiliados oficialmente à Roblox ou a qualquer jogo citado.')
+      ]),
+      createElement('nav', { class: 'portal-footer-nav', 'aria-label': 'Links do rodapé' }, [
+        createElement('button', { type: 'button', class: 'portal-footer-link', 'data-footer-action': 'home' }, 'Início'),
+        createElement('button', { type: 'button', class: 'portal-footer-link', 'data-footer-action': 'grow-garden' }, 'Grow a Garden 2'),
+        createElement('button', { type: 'button', class: 'portal-footer-link', 'data-footer-action': 'blox-fruits' }, 'Blox Fruits'),
+        createElement('button', { type: 'button', class: 'portal-footer-link', 'data-footer-action': 'orders' }, 'Meus pedidos'),
+        createElement('button', { type: 'button', class: 'portal-footer-link', 'data-footer-action': 'terms' }, 'Termos'),
+        createElement('button', { type: 'button', class: 'portal-footer-link', 'data-footer-action': 'support' }, 'Suporte')
+      ]),
+      createElement('span', { class: 'portal-footer-year' }, `© ${new Date().getFullYear()} THUR BLOX`)
     ]);
-    footer.querySelector('[data-action="open-terms"]').addEventListener('click', () => this.onSelect('terms'));
+    footer.querySelectorAll('[data-footer-action]').forEach((button) => button.addEventListener('click', () => {
+      const action = button.getAttribute('data-footer-action');
+      if (action === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
+      else if (action === 'orders') this.openProfilePage('orders');
+      else if (action === 'support') window.dispatchEvent(new CustomEvent('thur-blox-open-support'));
+      else this.onSelect(action);
+    }));
     return footer;
   }
 
