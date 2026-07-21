@@ -10,6 +10,7 @@ export class SupportChatWidget {
     this.open = false;
     this.error = '';
     this.status = '';
+    this.statusTimer = null;
     this.element = null;
     this.handleStorageSync = () => {
       if (this.open) this.replace();
@@ -69,7 +70,7 @@ export class SupportChatWidget {
       ]),
       createElement('div', { class: 'support-panel-body' }, [
         this.error ? createElement('p', { class: 'support-error' }, this.error) : null,
-        this.status ? createElement('p', { class: 'support-success', role: 'status' }, this.status) : null,
+        this.status ? createElement('p', { class: 'support-success', role: 'status', 'aria-live': 'polite' }, this.status) : null,
         conversation ? this.buildConversation(conversation) : this.buildStarter()
       ])
     ]);
@@ -108,7 +109,10 @@ export class SupportChatWidget {
     const messages = this.service.getConversationMessages(conversation.id);
     const closed = conversation.status === 'closed';
     const area = createElement('div', { class: 'support-conversation' }, [
-      createElement('div', { class: 'support-message-list' }, messages.map((message) => this.buildMessage(message))),
+      createElement('div', { class: 'support-message-list' }, [
+        ...messages.map((message) => this.buildMessage(message)),
+        createElement('span', { class: 'support-messages-end', 'aria-hidden': 'true' })
+      ]),
       createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
       closed
         ? createElement('div', { class: 'support-closed-state' }, [
@@ -210,6 +214,7 @@ export class SupportChatWidget {
       this.service.markAsRead(conversation.id, 'customer');
       this.status = 'Mensagem enviada';
       this.replace();
+      this.scheduleStatusClear();
     } catch (error) {
       this.error = error.message || 'Não foi possível iniciar o atendimento.';
       this.replace();
@@ -236,6 +241,7 @@ export class SupportChatWidget {
       event.currentTarget.reset();
       this.status = 'Mensagem enviada';
       this.replace();
+      this.scheduleStatusClear();
     } catch (error) {
       this.error = error.message || 'Não foi possível enviar a mensagem.';
       this.replace();
@@ -258,13 +264,22 @@ export class SupportChatWidget {
     this.replace();
   }
 
+  scheduleStatusClear() {
+    if (typeof window === 'undefined') return;
+    window.clearTimeout(this.statusTimer);
+    this.statusTimer = window.setTimeout(() => {
+      this.status = '';
+      if (this.open) this.replace();
+    }, 2500);
+  }
+
   replace() {
     const oldElement = this.element;
     const nextElement = this.render();
     if (oldElement?.parentNode) oldElement.replaceWith(nextElement);
     if (this.open) {
       window.setTimeout(() => {
-        nextElement.querySelector('.support-message-list')?.scrollTo({ top: 100000, behavior: 'smooth' });
+        nextElement.querySelector('.support-messages-end')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }, 0);
     }
   }

@@ -7576,15 +7576,16 @@ body {
 .support-panel-body {
   flex: 1 1 auto;
   min-height: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
   background: #111212;
 }
 
 .support-starter,
 .support-conversation {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   min-height: 0;
   display: grid;
   grid-template-rows: auto auto minmax(0, auto) auto;
@@ -7593,17 +7594,24 @@ body {
 }
 
 .support-conversation {
-  flex: 1 1 auto;
+  height: 100%;
   grid-template-rows: minmax(0, 1fr) auto auto auto;
 }
 
 .support-message-list {
-  min-height: 0;
+  min-height: 180px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding-right: 4px;
+}
+
+.support-messages-end {
+  flex: 0 0 1px;
+  width: 100%;
 }
 
 .support-message-row {
@@ -7675,6 +7683,7 @@ body {
 }
 
 .support-warning {
+  flex-shrink: 0;
   border: 1px solid rgba(216, 255, 0, .24);
   background: rgba(216, 255, 0, .08);
   color: rgba(255, 255, 255, .82);
@@ -7720,11 +7729,21 @@ body {
 }
 
 .support-success {
-  margin: 12px 12px 0;
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  margin: 0;
+  padding: 7px 11px;
+  transform: translateX(-50%);
   border: 1px solid rgba(216, 255, 0, .34);
-  background: rgba(216, 255, 0, .12);
+  background: rgba(18, 24, 12, .96);
   color: #d8ff00;
   font-weight: 850;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .38);
+  pointer-events: none;
 }
 
 .support-closed-note {
@@ -7777,6 +7796,7 @@ body {
 }
 
 .support-compose {
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: end;
@@ -7788,8 +7808,8 @@ body {
 }
 
 .support-compose textarea {
-  min-height: 54px;
-  max-height: 120px;
+  min-height: 72px;
+  max-height: 104px;
   padding: 6px 4px;
   border: 0;
   background: transparent;
@@ -9893,6 +9913,42 @@ body {
 
   .support-start-form {
     grid-template-columns: 1fr;
+  }
+
+  .support-panel-header {
+    gap: 6px;
+    padding: 10px 14px 12px;
+  }
+
+  .support-brand-stack {
+    margin-top: 2px;
+  }
+
+  .support-brand-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .support-conversation {
+    gap: 8px;
+    padding: 10px 10px 0;
+  }
+
+  .support-message-list {
+    min-height: 120px;
+  }
+
+  .support-warning {
+    padding: 7px 9px;
+  }
+
+  .support-compose {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .support-compose textarea {
+    min-height: 64px;
   }
 
   .admin-support-card {
