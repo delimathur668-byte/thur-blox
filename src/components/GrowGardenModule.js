@@ -25,6 +25,8 @@ import { SupportChatWidget } from './SupportChatWidget.js';
 
 const DEFAULT_ORDER_API_URL = '/api/store/orders';
 const ORDER_API_PATH = '/store/orders';
+const SUPPORT_BOT_AVATAR = '/assets/support/delima-blox-support-bot.png';
+const SUPPORT_ADMIN_AVATAR = '/assets/support/delima-blox-support-admin.png';
 
 const ORDER_ERROR_MESSAGES = {
   API_NOT_CONFIGURED: 'O servico de pedidos ainda nao foi configurado.',
@@ -3362,11 +3364,29 @@ export class GrowGardenModule {
   }
 
   buildAdminSupportMessage(message) {
-    return createElement('div', { class: `admin-chat-message ${message.senderType}` }, [
-      createElement('span', {}, message.senderType === 'customer' ? 'Cliente' : message.senderType === 'admin' ? 'Admin' : message.senderType === 'bot' ? 'Assistente Thur Blox' : 'Sistema'),
+    const sender = String(message.senderType || message.sender || '').toLowerCase();
+    const isCustomer = ['customer', 'client', 'user'].includes(sender);
+    const isBot = ['bot', 'assistant', 'system'].includes(sender);
+    const senderClass = isCustomer ? 'customer' : isBot ? 'bot' : 'admin';
+    const row = createElement('div', { class: `admin-chat-message-row ${senderClass}` });
+    if (!isCustomer) {
+      const avatar = createElement('span', { class: `admin-chat-avatar ${senderClass}` }, [
+        createElement('span', { class: 'admin-chat-avatar-fallback', 'aria-hidden': 'true' }, isBot ? 'BOT' : 'ADM')
+      ]);
+      const image = createElement('img', {
+        src: isBot ? SUPPORT_BOT_AVATAR : SUPPORT_ADMIN_AVATAR,
+        alt: isBot ? 'Assistente virtual Delima Blox' : 'Atendente Delima Blox'
+      });
+      image.addEventListener('error', () => image.remove(), { once: true });
+      avatar.append(image);
+      row.append(avatar);
+    }
+    row.append(createElement('div', { class: `admin-chat-message ${senderClass}` }, [
+      createElement('span', {}, isCustomer ? 'Cliente' : isBot ? 'Assistente Delima Blox' : 'Admin Delima Blox'),
       createElement('p', {}, message.body),
       createElement('small', {}, this.formatSupportDate(message.createdAt))
-    ]);
+    ]));
+    return row;
   }
 
   selectAdminSupportConversation(conversationId) {

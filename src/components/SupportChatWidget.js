@@ -1,7 +1,8 @@
 import { SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../services/SupportService.js';
 import { createElement } from './ui-utils.js';
 
-const APP_LOGO = '/assets/brand/delima-blox-logo.webp';
+const BOT_AVATAR = '/assets/support/delima-blox-support-bot.png';
+const ADMIN_AVATAR = '/assets/support/delima-blox-support-admin.png';
 const SECURITY_WARNING = 'Nunca envie sua senha, cookie ou código de autenticação do Roblox.';
 
 export class SupportChatWidget {
@@ -57,13 +58,9 @@ export class SupportChatWidget {
           createElement('button', { type: 'button', class: 'support-header-close', 'data-action': 'close-support', 'aria-label': 'Fechar chat' }, '')
         ]),
         createElement('div', { class: 'support-brand-stack' }, [
-          createElement('span', { class: 'support-brand-avatar' }, [
-            createElement('img', { src: APP_LOGO, alt: '' })
-          ]),
+          this.buildAvatar('bot', 'support-brand-avatar'),
           createElement('span', { class: 'support-brand-avatar secondary' }, 'TB'),
-          createElement('span', { class: 'support-brand-avatar' }, [
-            createElement('img', { src: APP_LOGO, alt: '' })
-          ])
+          this.buildAvatar('admin', 'support-brand-avatar')
         ]),
       createElement('strong', {}, 'Dúvidas? Fale conosco!'),
       createElement('small', {}, 'Última vez online uma hora atrás')
@@ -154,26 +151,39 @@ export class SupportChatWidget {
 
   buildSupportBubble(text) {
     return createElement('div', { class: 'support-message-row support' }, [
-      createElement('span', { class: 'support-message-avatar' }, [
-        createElement('img', { src: APP_LOGO, alt: '' })
-      ]),
-      createElement('p', { class: 'support-message-bubble' }, text)
+      this.buildAvatar('bot'),
+      createElement('div', { class: 'support-message-bubble' }, [
+        createElement('span', { class: 'support-message-name' }, 'Assistente Delima Blox'),
+        createElement('p', {}, text)
+      ])
     ]);
   }
 
   buildMessage(message) {
-    if (message.senderType === 'system') return this.buildSupportBubble(message.body);
-    const own = message.senderType === 'customer';
-    const isBot = message.senderType === 'bot';
+    const sender = String(message.senderType || message.sender || '').toLowerCase();
+    const own = ['customer', 'client', 'user'].includes(sender);
+    const isBot = ['bot', 'assistant', 'system'].includes(sender);
     return createElement('div', { class: `support-message-row ${own ? 'customer' : isBot ? 'bot' : 'admin'}` }, [
-      own ? null : createElement('span', { class: 'support-message-avatar' }, [
-        createElement('img', { src: APP_LOGO, alt: '' })
-      ]),
+      own ? null : this.buildAvatar(isBot ? 'bot' : 'admin'),
       createElement('div', { class: 'support-message-bubble' }, [
-        createElement('span', { class: 'support-message-name' }, own ? 'Você' : isBot ? 'Assistente Thur Blox' : (message.senderName || 'Suporte Thur Blox')),
+        createElement('span', { class: 'support-message-name' }, own ? 'Você' : isBot ? 'Assistente Delima Blox' : (message.senderName || 'Admin Delima Blox')),
         createElement('p', {}, message.body)
       ])
     ]);
+  }
+
+  buildAvatar(type, className = 'support-message-avatar') {
+    const isBot = type === 'bot';
+    const wrapper = createElement('span', { class: `${className} support-avatar-${type}` }, [
+      createElement('span', { class: 'support-avatar-fallback', 'aria-hidden': 'true' }, isBot ? 'BOT' : 'ADM')
+    ]);
+    const image = createElement('img', {
+      src: isBot ? BOT_AVATAR : ADMIN_AVATAR,
+      alt: isBot ? 'Assistente virtual Delima Blox' : 'Atendente Delima Blox'
+    });
+    image.addEventListener('error', () => image.remove(), { once: true });
+    wrapper.append(image);
+    return wrapper;
   }
 
   openPanel() {
