@@ -1,7 +1,7 @@
 const normalizeSlug = (slug) => String(slug || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 const normalizeString = (value) => String(value || '').trim().toLowerCase();
 
-const dataUrl = (fileName) => `src/data/grow-garden-2/${fileName}`;
+const dataUrl = (fileName) => `/src/data/grow-garden-2/${fileName}`;
 
 export class SeedDataService {
   constructor() {
@@ -12,6 +12,10 @@ export class SeedDataService {
   async fetchJson(url) {
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error(`Falha ao buscar ${url}`);
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Arquivo de catálogo não retornou JSON válido: ${url}`);
+    }
     return response.json();
   }
 

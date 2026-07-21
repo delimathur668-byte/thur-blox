@@ -1,8 +1,8 @@
 import { STORE_COMMERCE_CONFIG } from '../../config/store-commerce-config.js';
 import { CouponAdminService } from '../CouponAdminService.js';
 
-const DATA_URL = 'src/data/grow-garden-2/store-products.json';
-const COUPONS_URL = 'src/data/grow-garden-2/store-coupons.example.json';
+const DATA_URL = '/src/data/grow-garden-2/store-products.json';
+const COUPONS_URL = '/src/data/grow-garden-2/store-coupons.example.json';
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,20}$/;
 
 export const STORE_STATUSES = Object.freeze({
@@ -341,6 +341,10 @@ export class StoreCommerceService {
   async fetchJson(url) {
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error(`Falha ao buscar ${url}`);
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Arquivo de catálogo não retornou JSON válido: ${url}`);
+    }
     return response.json();
   }
 

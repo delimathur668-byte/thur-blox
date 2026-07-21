@@ -934,6 +934,16 @@ test('Blox Fruits category exposes five Pix products with isolated storefront in
   });
 });
 
+test('store catalogs use root-absolute JSON paths with content-type validation', () => {
+  const seedServiceCode = readFileSync(resolve(projectRoot, 'src', 'services', 'grow-garden-2', 'SeedDataService.js'), 'utf8');
+  const storeServiceCode = readFileSync(resolve(projectRoot, 'src', 'services', 'grow-garden-2', 'StoreCommerceService.js'), 'utf8');
+  assert.ok(seedServiceCode.includes('`/src/data/grow-garden-2/${fileName}`'));
+  assert.ok(storeServiceCode.includes("'/src/data/grow-garden-2/store-products.json'"));
+  assert.ok(homePortalCode.includes("'/src/data/grow-garden-2/store-products.json'"));
+  assert.ok(seedServiceCode.includes("contentType.includes('application/json')"));
+  assert.ok(storeServiceCode.includes("contentType.includes('application/json')"));
+});
+
 test('portal exposes FAQ, approved reviews and original THUR BLOX terms route', () => {
   assert.equal(homePortalCode.includes('buildFaqSection()'), true);
   assert.equal(homePortalCode.includes("review.status === 'approved'"), true);

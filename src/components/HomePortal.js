@@ -10,7 +10,7 @@ const PORTAL_CARD_IMAGES = {
   'grow-garden': '/assets/portal/grow-a-garden-2.webp'
 };
 const APP_LOGO = '/assets/brand/delima-blox-logo.webp';
-const STORE_PRODUCTS_URL = 'src/data/grow-garden-2/store-products.json';
+const STORE_PRODUCTS_URL = '/src/data/grow-garden-2/store-products.json';
 
 const ORDER_FILTERS = [
   ['all', 'Todos'],
@@ -1240,6 +1240,9 @@ export class HomePortal {
     if (this.productCatalogLoaded) return;
     try {
       const response = await fetch(STORE_PRODUCTS_URL, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Falha ao buscar ${STORE_PRODUCTS_URL}`);
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) throw new Error('Arquivo de catálogo não retornou JSON válido');
       const data = await response.json();
       this.productCatalog = Array.isArray(data.products) ? data.products : [];
     } catch {
