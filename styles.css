@@ -7686,6 +7686,11 @@ body {
   color: #fecaca;
 }
 
+.support-message-row.bot .support-message-bubble {
+  border: 1px solid rgba(216, 255, 0, .24);
+  background: linear-gradient(145deg, rgba(216, 255, 0, .11), rgba(45, 45, 45, .96));
+}
+
 .support-success {
   margin: 12px 12px 0;
   border: 1px solid rgba(216, 255, 0, .34);
@@ -9325,6 +9330,12 @@ body {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.admin-chat-message.bot {
+  align-self: flex-start;
+  border: 1px solid rgba(114, 215, 255, .22);
+  background: rgba(114, 215, 255, .08);
 }
 
 /* Premium administrative workspace */

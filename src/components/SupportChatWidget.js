@@ -77,7 +77,7 @@ export class SupportChatWidget {
 
   buildStarter() {
     const block = createElement('div', { class: 'support-starter' }, [
-      this.buildSupportBubble('Olá! Como posso ajudar você? 😊'),
+      this.buildSupportBubble('Olá! 👋 Eu sou o assistente da Thur Blox. Como posso ajudar você?'),
       createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
       createElement('form', { class: 'support-start-form', novalidate: 'novalidate' }, [
         this.buildField('Seu nome', 'customerName', 'text', true),
@@ -153,12 +153,13 @@ export class SupportChatWidget {
   buildMessage(message) {
     if (message.senderType === 'system') return this.buildSupportBubble(message.body);
     const own = message.senderType === 'customer';
-    return createElement('div', { class: `support-message-row ${own ? 'customer' : 'admin'}` }, [
+    const isBot = message.senderType === 'bot';
+    return createElement('div', { class: `support-message-row ${own ? 'customer' : isBot ? 'bot' : 'admin'}` }, [
       own ? null : createElement('span', { class: 'support-message-avatar' }, [
         createElement('img', { src: APP_LOGO, alt: '' })
       ]),
       createElement('div', { class: 'support-message-bubble' }, [
-        createElement('span', { class: 'support-message-name' }, own ? 'Você' : (message.senderName || 'Suporte Thur Blox')),
+        createElement('span', { class: 'support-message-name' }, own ? 'Você' : isBot ? 'Assistente Thur Blox' : (message.senderName || 'Suporte Thur Blox')),
         createElement('p', {}, message.body)
       ])
     ]);

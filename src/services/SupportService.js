@@ -9,7 +9,26 @@ export const SUPPORT_STATUS_LABELS = {
   closed: 'Fechado'
 };
 
-const INITIAL_SUPPORT_MESSAGE = 'Olá! Como posso ajudar você? 😊';
+const INITIAL_SUPPORT_MESSAGE = 'Olá! 👋 Eu sou o assistente da Thur Blox. Como posso ajudar você?';
+
+const BOT_REPLIES = {
+  payment: 'Obrigado pelo aviso! Se você já realizou o pagamento via Pix, aguarde a confirmação do pedido. Não envie dados sensíveis como senha, cookie ou código de autenticação.',
+  order: 'Para ajudar mais rápido, envie o código do pedido e seu nick do Roblox. Assim a equipe consegue localizar sua compra.',
+  problem: 'Entendi. Registrei seu problema. Envie mais detalhes ou print, se possível, para a equipe verificar melhor.',
+  greeting: 'Olá! Seja bem-vindo ao suporte da Thur Blox. Me diga como posso ajudar.',
+  fallback: 'Mensagem recebida! Nossa equipe vai responder assim que possível.'
+};
+
+const normalizeForBot = (value) => String(value || '').toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+export const getSupportBotReply = (message) => {
+  const text = normalizeForBot(message);
+  if (['pix', 'paguei', 'pagamento', 'qr code', 'copia e cola', 'comprovante'].some((keyword) => text.includes(keyword))) return BOT_REPLIES.payment;
+  if (['pedido', 'entrega', 'entregar', 'recebi', 'nao chegou', 'produto'].some((keyword) => text.includes(keyword))) return BOT_REPLIES.order;
+  if (['erro', 'bug', 'problema', 'nao consigo', 'falhou', 'travou'].some((keyword) => text.includes(keyword))) return BOT_REPLIES.problem;
+  if (['oi', 'ola', 'bom dia', 'boa tarde', 'boa noite'].some((keyword) => new RegExp(`(^|\\s)${keyword}(\\s|[!,.?]|$)`).test(text))) return BOT_REPLIES.greeting;
+  return BOT_REPLIES.fallback;
+};
 
 const nowIso = () => new Date().toISOString();
 
@@ -41,8 +60,8 @@ export class SupportService {
     const id = createId('support');
     const greeting = this.buildMessage({
       conversationId: id,
-      senderType: 'system',
-      senderName: 'Suporte Thur Blox',
+      senderType: 'bot',
+      senderName: 'Assistente Thur Blox',
       body: INITIAL_SUPPORT_MESSAGE,
       createdAt
     });
@@ -69,7 +88,7 @@ export class SupportService {
 
   sendMessage(conversationId, { senderType = 'customer', senderName = '', body } = {}) {
     const messageBody = normalizeText(body, { required: true, label: 'Mensagem' });
-    const sender = senderType === 'admin' ? 'admin' : senderType === 'system' ? 'system' : 'customer';
+    const sender = senderType === 'admin' ? 'admin' : senderType === 'system' ? 'system' : senderType === 'bot' ? 'bot' : 'customer';
     const createdAt = this.now();
     const message = this.buildMessage({
       conversationId,
@@ -92,6 +111,13 @@ export class SupportService {
     } else if (sender === 'customer') {
       conversation.status = conversation.messages.some((item) => item.senderType === 'admin') ? 'awaiting_admin' : 'new';
       conversation.unreadByAdmin = Number(conversation.unreadByAdmin || 0) + 1;
+      conversation.messages.push(this.buildMessage({
+        conversationId,
+        senderType: 'bot',
+        senderName: 'Assistente Thur Blox',
+        body: getSupportBotReply(messageBody),
+        createdAt
+      }));
     }
     this.saveState(state);
     return message;
@@ -178,8 +204,11 @@ export class SupportService {
       id: createId('msg'),
       conversationId,
       senderType,
+      sender: senderType,
       senderName,
       body,
+      text: body,
+      read: senderType === 'bot',
       createdAt
     };
   }

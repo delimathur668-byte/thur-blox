@@ -45,7 +45,7 @@ import { AuthService } from '../src/services/AuthService.js';
 import { AdminAuthService } from '../src/services/AdminAuthService.js';
 import { InventoryOverrideService } from '../src/services/InventoryOverrideService.js';
 import { CouponAdminService } from '../src/services/CouponAdminService.js';
-import { SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
+import { getSupportBotReply, SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
 import { ReviewService, REVIEW_STORAGE_KEY } from '../src/services/ReviewService.js';
 import { OrderStore } from '../server/store/OrderStore.js';
 import { SandboxPixPaymentGateway } from '../server/store/PaymentGateway.js';
@@ -914,7 +914,8 @@ test('SupportService persists conversations and admin replies locally', () => {
 
   assert.equal(stored.status, 'responded');
   assert.equal(stored.unreadByCustomer, 1);
-  assert.equal(stored.messages.length, 3);
+  assert.equal(stored.messages.length, 4);
+  assert.equal(stored.messages[2].senderType, 'bot');
   assert.equal(stored.messages.at(-1).senderType, 'admin');
   assert.throws(() => service.sendMessage(conversation.id, { body: '' }), /Mensagem/);
   assert.throws(() => service.sendMessage(conversation.id, { body: 'x'.repeat(SUPPORT_MESSAGE_MAX_LENGTH + 1) }), /maximo/);
@@ -935,9 +936,27 @@ test('SupportService accepts a conversation with only name and message', () => {
   const restored = restoredService.getActiveConversation();
   assert.equal(restored.customerEmail, '');
   assert.equal(restored.robloxUsername, '');
-  assert.equal(restored.messages.at(-1).body, 'Mensagem sem email e sem nick.');
+  assert.equal(restored.messages.at(-2).body, 'Mensagem sem email e sem nick.');
+  assert.equal(restored.messages.at(-1).sender, 'bot');
+  assert.equal(restored.messages.at(-1).read, true);
   assert.equal(restoredService.listAdminConversations()[0].id, conversation.id);
   assert.equal(restoredService.getAdminUnreadCount(), 1);
+});
+
+test('support bot recognizes keywords and never replies to admin messages', () => {
+  assert.match(getSupportBotReply('oi'), /bem-vindo/i);
+  assert.match(getSupportBotReply('já paguei no Pix'), /pagamento via Pix/i);
+  assert.match(getSupportBotReply('meu pedido não chegou'), /código do pedido/i);
+  assert.match(getSupportBotReply('deu erro e travou'), /Registrei seu problema/i);
+  assert.match(getSupportBotReply('uma dúvida diferente'), /Mensagem recebida/i);
+
+  const storage = createMemoryStorage();
+  const service = new SupportService({ storage, now: () => '2026-07-21T12:00:00.000Z' });
+  const conversation = service.createConversation({ customerName: 'Cliente' });
+  service.replyAsAdmin(conversation.id, 'Resposta manual do admin.');
+  const messages = service.getConversationMessages(conversation.id);
+  assert.equal(messages.length, 2);
+  assert.equal(messages.at(-1).senderType, 'admin');
 });
 
 test('ReviewService saves one pending review per paid order and remembers the thank-you screen', () => {

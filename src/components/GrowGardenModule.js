@@ -3363,7 +3363,7 @@ export class GrowGardenModule {
 
   buildAdminSupportMessage(message) {
     return createElement('div', { class: `admin-chat-message ${message.senderType}` }, [
-      createElement('span', {}, message.senderType === 'customer' ? 'Cliente' : message.senderType === 'admin' ? 'Admin' : 'Sistema'),
+      createElement('span', {}, message.senderType === 'customer' ? 'Cliente' : message.senderType === 'admin' ? 'Admin' : message.senderType === 'bot' ? 'Assistente Thur Blox' : 'Sistema'),
       createElement('p', {}, message.body),
       createElement('small', {}, this.formatSupportDate(message.createdAt))
     ]);
