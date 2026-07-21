@@ -132,19 +132,26 @@ const GAME_CARDS = [
 const BENEFITS = [
   {
     icon: 'send',
-    title: 'Envio imediato',
-    text: 'Receba instruções e atualizações do pedido rapidamente após a confirmação.'
+    title: 'Envio rápido',
+    text: 'Receba seu pedido após a confirmação do pagamento.'
   },
   {
     icon: 'headphones',
     title: 'Suporte eficiente',
-    text: 'Fale com o suporte da loja sempre que precisar de ajuda.'
+    text: 'Fale com nosso suporte pelo chat do próprio site.'
   },
   {
     icon: 'shield',
     title: 'Compra segura',
-    text: 'Seus dados são tratados com segurança durante o pedido e pagamento.'
+    text: 'Nunca pedimos senha, cookie ou código de autenticação.'
   }
+];
+
+const FAQ_ITEMS = [
+  ['Como faço um pedido?', 'Escolha o produto, adicione ao carrinho e finalize o pagamento via Pix.'],
+  ['Qual o prazo de entrega?', 'A entrega é feita após a confirmação do pagamento, conforme disponibilidade do suporte.'],
+  ['Como funciona o suporte?', 'Nosso suporte funciona pelo chat do próprio site.'],
+  ['Preciso informar minha senha?', 'Não. Nunca pedimos senha, cookie ou código de autenticação.']
 ];
 
 const CUSTOMER_REVIEWS = [
@@ -273,6 +280,7 @@ export class HomePortal {
         this.buildGamesSection(),
         this.buildBenefitsSection(),
         this.buildReviewsSection(),
+        this.buildFaqSection(),
         this.buildFooter()
       ];
     const container = createElement('div', { class: 'home-portal' }, [
@@ -1338,7 +1346,7 @@ export class HomePortal {
     const hero = createElement('section', { class: 'portal-hero' }, [
       createElement('div', { class: 'portal-hero-copy' }, [
         createElement('h1', {}, 'TUDO MAIS FÁCIL NO THUR BLOX!'),
-        createElement('p', {}, 'Encontre produtos, itens e utilidades dos seus jogos favoritos em um só lugar.'),
+        createElement('p', {}, 'Encontre produtos digitais dos seus jogos favoritos em um só lugar.'),
         createElement('button', { type: 'button', class: 'button-primary hero-cta', 'data-action': 'see-games', 'aria-label': 'Ir para categorias' }, [
           createElement('span', { class: 'category-button-icon', 'aria-hidden': 'true' }, ''),
           createElement('span', {}, 'Categorias')
@@ -1438,7 +1446,19 @@ export class HomePortal {
   }
 
   buildReviewsSection() {
-    const reviews = [...CUSTOMER_REVIEWS, ...CUSTOMER_REVIEWS];
+    const approvedReviews = this.reviewService.list()
+      .filter((review) => review.status === 'approved')
+      .map((review) => ({
+        initials: this.getCustomerInitials(review.customerName),
+        name: review.customerName || 'Cliente Thur Blox',
+        date: this.formatReviewDate(review.createdAt),
+        text: review.comment || 'Compra concluída com sucesso.',
+        product: review.productNames?.join(', ') || 'Produto digital',
+        productImage: '/assets/brand/delima-blox-logo.webp',
+        rating: review.rating
+      }));
+    const sourceReviews = approvedReviews.length > 0 ? approvedReviews : CUSTOMER_REVIEWS;
+    const reviews = [...sourceReviews, ...sourceReviews];
     const section = createElement('section', { class: 'portal-reviews', 'aria-labelledby': 'portal-reviews-title' }, [
       createElement('div', { class: 'portal-reviews-heading' }, [
         createElement('span', { class: 'reviews-eyebrow' }, [
@@ -1449,7 +1469,7 @@ export class HomePortal {
         createElement('p', {}, 'Veja o feedback de quem já comprou com a gente.')
       ]),
       createElement('div', { class: 'reviews-marquee', 'aria-label': 'Avaliações dos clientes' }, [
-        createElement('div', { class: 'reviews-track' }, reviews.map((review, index) => this.buildReviewCard(review, index)))
+        createElement('div', { class: 'reviews-track' }, reviews.map((review, index) => this.buildReviewCard(review, index, sourceReviews.length)))
       ])
     ]);
     section.querySelectorAll('[data-action="view-review-product"]').forEach((button) => {
@@ -1458,8 +1478,8 @@ export class HomePortal {
     return section;
   }
 
-  buildReviewCard(review, index) {
-    return createElement('article', { class: 'review-card', 'aria-hidden': index >= CUSTOMER_REVIEWS.length ? 'true' : null }, [
+  buildReviewCard(review, index, duplicateStart = CUSTOMER_REVIEWS.length) {
+    return createElement('article', { class: 'review-card', 'aria-hidden': index >= duplicateStart ? 'true' : null }, [
       createElement('div', { class: 'review-card-top' }, [
         createElement('span', { class: 'review-avatar' }, review.initials),
         createElement('div', { class: 'review-author' }, [
@@ -1468,7 +1488,7 @@ export class HomePortal {
         ])
       ]),
       createElement('p', { class: 'review-text' }, `"${review.text}"`),
-      createElement('div', { class: 'review-stars', 'aria-label': '5 de 5 estrelas' }, Array.from({ length: 5 }, () => (
+      createElement('div', { class: 'review-stars', 'aria-label': `${review.rating || 5} de 5 estrelas` }, Array.from({ length: review.rating || 5 }, () => (
         createElement('span', { class: 'review-star', 'aria-hidden': 'true' }, '')
       ))),
       createElement('div', { class: 'review-product-row' }, [
@@ -1480,7 +1500,7 @@ export class HomePortal {
           type: 'button',
           class: 'review-view-button',
           'data-action': 'view-review-product',
-          tabindex: index >= CUSTOMER_REVIEWS.length ? '-1' : null
+          tabindex: index >= duplicateStart ? '-1' : null
         }, [
           createElement('span', {}, 'Ver'),
           createElement('span', { class: 'review-view-arrow', 'aria-hidden': 'true' }, '')
@@ -1489,13 +1509,41 @@ export class HomePortal {
     ]);
   }
 
+  formatReviewDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Avaliação verificada';
+    return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).format(date);
+  }
+
+  buildFaqSection() {
+    return createElement('section', { class: 'portal-faq', 'aria-labelledby': 'portal-faq-title' }, [
+      createElement('div', { class: 'portal-faq-heading' }, [
+        createElement('span', { class: 'reviews-eyebrow' }, 'Ajuda'),
+        createElement('h2', { id: 'portal-faq-title' }, 'Perguntas frequentes'),
+        createElement('p', {}, 'Informações rápidas para comprar com tranquilidade.')
+      ]),
+      createElement('div', { class: 'portal-faq-list' }, FAQ_ITEMS.map(([question, answer], index) => (
+        createElement('details', { class: 'portal-faq-item', open: index === 0 ? 'open' : null }, [
+          createElement('summary', {}, [
+            createElement('strong', {}, question),
+            createElement('span', { 'aria-hidden': 'true' }, '+')
+          ]),
+          createElement('p', {}, answer)
+        ])
+      )))
+    ]);
+  }
+
   buildFooter() {
-    return createElement('footer', { class: 'portal-footer' }, [
+    const footer = createElement('footer', { class: 'portal-footer' }, [
       createElement('strong', {}, 'THUR BLOX'),
       createElement('span', {}, 'Loja digital independente para produtos e utilidades de jogos.'),
       createElement('span', {}, 'Não afiliado oficialmente ao Roblox ou aos criadores dos jogos.'),
+      createElement('button', { type: 'button', class: 'portal-footer-link', 'data-action': 'open-terms' }, 'Termos e condições'),
       createElement('span', {}, String(new Date().getFullYear()))
     ]);
+    footer.querySelector('[data-action="open-terms"]').addEventListener('click', () => this.onSelect('terms'));
+    return footer;
   }
 
   applyCategoryFilter() {

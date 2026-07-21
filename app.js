@@ -3,6 +3,7 @@ import { HomePortal } from './src/components/HomePortal.js';
 import { BrainrotMaintenanceScreen } from './src/components/BrainrotMaintenanceScreen.js';
 import { BRAINROT_MAINTENANCE_CONFIG } from './src/config/brainrot-maintenance-config.js';
 import { AuthService } from './src/services/AuthService.js';
+import { TermsPage } from './src/components/TermsPage.js';
 
 const BRAINROTS_DATA_URL = 'src/data/brainrots.json';
 const MUTATIONS_DATA_URL = 'src/data/mutations.json';
@@ -17,6 +18,8 @@ const ROUTE_VIEW_MAP = Object.freeze({
   '/roube-um-brainrot': 'brainrot',
   '/grow-garden': 'grow-garden',
   '/grow-garden-2': 'grow-garden',
+  '/terms': 'terms',
+  '/termos': 'terms',
   '/admin': 'admin',
   '/painel': 'admin',
   '/support-admin': 'admin',
@@ -66,6 +69,7 @@ const getRequestedView = () => {
   if (isBrainrotRoute(queryView) || isBrainrotRoute(hashPath) || isBrainrotRoute(path)) return 'brainrot';
   if (isGrowGardenRoute(queryView) || isGrowGardenRoute(hashPath) || isGrowGardenRoute(path)) return 'grow-garden';
   if (isAdminRoute(queryView) || isAdminRoute(hashPath) || isAdminRoute(path)) return 'admin';
+  if (queryView === 'terms' || queryView === 'termos' || /^\/?(terms|termos)(\/|$)/i.test(hashPath)) return 'terms';
   return ROUTE_VIEW_MAP[path] || 'home';
 };
 
@@ -73,6 +77,7 @@ const routeForView = (view) => {
   if (view === 'brainrot') return '/brainrot';
   if (view === 'grow-garden') return '/grow-garden-2';
   if (view === 'admin') return '/admin';
+  if (view === 'terms') return '/terms';
   return '/';
 };
 
@@ -146,6 +151,8 @@ const initialize = async () => {
           brainrotMaintenance: BRAINROT_MAINTENANCE_CONFIG,
           authService: state.authService
         });
+      } else if (state.currentView === 'terms') {
+        new TermsPage({ root, onNavigate: navigate });
       } else if (state.currentView === 'admin') {
         const adminSession = state.authService.getSession();
         if (!adminSession) {

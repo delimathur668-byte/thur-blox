@@ -59,6 +59,7 @@ const appCode = readFileSync(resolve(projectRoot, 'app.js'), 'utf8');
 const componentCode = readFileSync(resolve(projectRoot, 'src', 'components', 'EquivalenceApp.js'), 'utf8');
 const imageServiceCode = readFileSync(resolve(projectRoot, 'src', 'services', 'BrainrotImageService.js'), 'utf8');
 const homePortalCode = readFileSync(resolve(projectRoot, 'src', 'components', 'HomePortal.js'), 'utf8');
+const termsPageCode = readFileSync(resolve(projectRoot, 'src', 'components', 'TermsPage.js'), 'utf8');
 const brainrotMaintenanceScreenCode = readFileSync(resolve(projectRoot, 'src', 'components', 'BrainrotMaintenanceScreen.js'), 'utf8');
 const brainrotMaintenanceConfigCode = readFileSync(resolve(projectRoot, 'src', 'config', 'brainrot-maintenance-config.js'), 'utf8');
 const growGardenModuleCode = readFileSync(resolve(projectRoot, 'src', 'components', 'GrowGardenModule.js'), 'utf8');
@@ -919,6 +920,19 @@ test('SupportService persists conversations and admin replies locally', () => {
   assert.equal(stored.messages.at(-1).senderType, 'admin');
   assert.throws(() => service.sendMessage(conversation.id, { body: '' }), /Mensagem/);
   assert.throws(() => service.sendMessage(conversation.id, { body: 'x'.repeat(SUPPORT_MESSAGE_MAX_LENGTH + 1) }), /maximo/);
+});
+
+test('portal exposes FAQ, approved reviews and original THUR BLOX terms route', () => {
+  assert.equal(homePortalCode.includes('buildFaqSection()'), true);
+  assert.equal(homePortalCode.includes("review.status === 'approved'"), true);
+  assert.equal(homePortalCode.includes("this.onSelect('terms')"), true);
+  assert.equal(appCode.includes("'/terms': 'terms'"), true);
+  assert.equal(appCode.includes('new TermsPage'), true);
+  assert.match(termsPageCode, /Entrega manual/);
+  assert.match(termsPageCode, /Pagamento via Pix/);
+  assert.match(termsPageCode, /Não é oficial/);
+  assert.match(termsPageCode, /Nunca envie sua senha, cookie ou código de autenticação/);
+  assert.equal(termsPageCode.includes('BloxLegacy'), false);
 });
 
 test('SupportService accepts a conversation with only name and message', () => {
