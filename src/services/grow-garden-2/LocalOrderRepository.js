@@ -1,5 +1,12 @@
 const DEFAULT_STORAGE_KEY = 'thur_blox_local_orders';
 
+export const isActiveOrder = (order = {}) => {
+  const status = String(order.orderStatus || order.status || '').toLowerCase();
+  return !['cancelled', 'canceled'].includes(status)
+    && order.archived !== true
+    && order.deleted !== true;
+};
+
 export class LocalOrderRepository {
   constructor({ storage = globalThis.localStorage, storageKey = DEFAULT_STORAGE_KEY } = {}) {
     this.storage = storage;

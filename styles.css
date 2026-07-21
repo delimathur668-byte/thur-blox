@@ -9945,8 +9945,8 @@ body {
     align-items: flex-start;
   }
 
-  .admin-dashboard-shell .admin-order-actions,
-  .admin-dashboard-shell .admin-support-actions {
+.admin-dashboard-shell .admin-order-actions,
+.admin-dashboard-shell .admin-support-actions {
     display: grid;
     grid-template-columns: 1fr;
   }
@@ -9955,6 +9955,23 @@ body {
   .admin-dashboard-shell .admin-support-actions button {
     width: 100%;
   }
+}
+
+.admin-order-cancel-confirm {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(248, 113, 113, .4);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, .18);
+  color: #fecaca;
+}
+
+.admin-order-cancel-confirm > div {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 860px) {

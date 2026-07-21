@@ -39,7 +39,7 @@ import {
   validatePixPayloadCrc,
   validateRobloxUsername
 } from '../src/services/grow-garden-2/StoreCommerceService.js';
-import { LocalOrderRepository } from '../src/services/grow-garden-2/LocalOrderRepository.js';
+import { LocalOrderRepository, isActiveOrder } from '../src/services/grow-garden-2/LocalOrderRepository.js';
 import { CartService, CART_STORAGE_KEY } from '../src/services/grow-garden-2/CartService.js';
 import { AuthService } from '../src/services/AuthService.js';
 import { AdminAuthService } from '../src/services/AdminAuthService.js';
@@ -1657,6 +1657,26 @@ test('LocalOrderRepository persists manual local orders for checkout and admin',
   assert.equal(repository.update('THUR-LOCAL1', { orderStatus: 'paid' }).orderStatus, 'paid');
 });
 
+test('cancelled and archived orders stay persisted but are hidden from the active admin list', () => {
+  const memory = new Map();
+  const storage = {
+    getItem: (key) => memory.get(key) || null,
+    setItem: (key, value) => memory.set(key, value)
+  };
+  const repository = new LocalOrderRepository({ storage, storageKey: 'archived-orders-test' });
+  repository.create({ orderCode: 'THUR-ACTIVE', orderStatus: 'awaiting_payment' });
+  repository.create({ orderCode: 'THUR-CANCEL', orderStatus: 'awaiting_payment' });
+  repository.update('THUR-CANCEL', { orderStatus: 'cancelled', archived: true });
+
+  const persisted = repository.list();
+  assert.equal(persisted.length, 2, 'soft delete must preserve order history');
+  assert.equal(repository.findByCode('THUR-CANCEL').archived, true);
+  assert.deepEqual(persisted.filter(isActiveOrder).map((order) => order.orderCode), ['THUR-ACTIVE']);
+  assert.equal(isActiveOrder({ orderStatus: 'canceled' }), false);
+  assert.equal(isActiveOrder({ status: 'cancelled' }), false);
+  assert.equal(isActiveOrder({ orderStatus: 'paid', deleted: true }), false);
+});
+
 test('orders work without an authenticated session and admin can list all after authorization', () => {
   const store = new OrderStore({ storePath: resolve(mkdtempSync(resolve(tmpdir(), 'thur-orders-')), 'orders.json') });
   const order = store.create({
@@ -1676,6 +1696,10 @@ test('orders work without an authenticated session and admin can list all after 
   assert.equal(store.findByCode('THUR-ABC123')?.orderCode, 'THUR-ABC123');
   assert.equal(store.listAll().length, 1);
   assert.equal(store.updateStatus('THUR-ABC123', { orderStatus: 'paid' }).orderStatus, 'paid');
+  const archived = store.updateStatus('THUR-ABC123', { orderStatus: 'cancelled', archived: true });
+  assert.equal(archived.archived, true);
+  assert.equal(store.listAll().length, 1, 'server soft delete must preserve order history');
+  assert.equal(store.listAll().filter(isActiveOrder).length, 0);
 });
 
 test('StoreCommerceService blocks buying while commerce is disabled', () => {

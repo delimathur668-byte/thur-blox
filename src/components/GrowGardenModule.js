@@ -8,7 +8,7 @@ import {
   normalizeCouponCode,
   validateRobloxUsername
 } from '../services/grow-garden-2/StoreCommerceService.js';
-import { LocalOrderRepository } from '../services/grow-garden-2/LocalOrderRepository.js';
+import { LocalOrderRepository, isActiveOrder } from '../services/grow-garden-2/LocalOrderRepository.js';
 import { CartService } from '../services/grow-garden-2/CartService.js';
 import { STORE_COMMERCE_CONFIG } from '../config/store-commerce-config.js';
 import { SupportService, SUPPORT_STATUS_LABELS } from '../services/SupportService.js';
@@ -142,6 +142,8 @@ export class GrowGardenModule {
     this.couponAdminService = new CouponAdminService();
     this.selectedSupportConversationId = null;
     this.supportAdminMessage = '';
+    this.adminOrderMessage = '';
+    this.pendingOrderCancellationCode = '';
     this.adminStockDrafts = {};
     this.adminStockErrors = {};
     this.adminStockSaving = false;
@@ -2389,7 +2391,7 @@ export class GrowGardenModule {
         createElement('button', { type: 'button', class: 'button-primary', 'data-action': 'go-home-login' }, 'Entrar no portal')
       ]);
     }
-    const orders = this.manualOrders;
+    const orders = this.getActiveAdminOrders();
     const pending = orders.filter((order) => order.paymentStatus === 'pending').length;
     const paid = orders.filter((order) => order.paymentStatus === 'confirmed' || order.orderStatus === 'paid').length;
     const delivered = orders.filter((order) => order.deliveryStatus === 'delivered' || order.orderStatus === 'delivered').length;
@@ -2413,7 +2415,7 @@ export class GrowGardenModule {
         ])
       ]),
       createElement('div', { class: 'admin-status-grid' }, [
-        this.buildAdminStatCard('Total de pedidos', String(orders.length), 'Todos os pedidos registrados', 'orders'),
+        this.buildAdminStatCard('Total de pedidos', String(orders.length), 'Pedidos ativos', 'orders'),
         this.buildAdminStatCard('Pendentes', String(pending), 'Aguardando pagamento', 'pending'),
         this.buildAdminStatCard('Pagos', String(paid), 'Pagamentos confirmados', 'paid'),
         this.buildAdminStatCard('Entregues', String(delivered), 'Pedidos finalizados', 'delivered'),
@@ -2464,8 +2466,9 @@ export class GrowGardenModule {
   }
 
   buildAdminOrdersSection() {
-    const orders = this.manualOrders;
+    const orders = this.getActiveAdminOrders();
     return createElement('section', { class: 'admin-panel-section' }, [
+      this.adminOrderMessage ? createElement('p', { class: 'support-admin-notice', role: 'status' }, this.adminOrderMessage) : null,
       createElement('div', { class: 'admin-order-top' }, [
         createElement('div', {}, [
           createElement('span', { class: 'garden-kicker' }, 'Pedidos'),
@@ -3389,6 +3392,10 @@ export class GrowGardenModule {
     return row;
   }
 
+  getActiveAdminOrders() {
+    return this.manualOrders.filter(isActiveOrder);
+  }
+
   selectAdminSupportConversation(conversationId) {
     if (!conversationId) return;
     this.selectedSupportConversationId = conversationId;
@@ -3492,12 +3499,37 @@ export class GrowGardenModule {
         createElement('button', { type: 'button', class: 'button-secondary', 'data-admin-action': 'start-delivery' }, 'Iniciar entrega'),
         createElement('button', { type: 'button', class: 'button-secondary', 'data-admin-action': 'delivered' }, 'Marcar como entregue'),
         createElement('button', { type: 'button', class: 'button-secondary', 'data-admin-action': 'cancel' }, 'Cancelar pedido')
-      ])
+      ]),
+      this.pendingOrderCancellationCode === order.orderCode
+        ? createElement('div', { class: 'admin-order-cancel-confirm', role: 'alert' }, [
+          createElement('strong', {}, 'Tem certeza que deseja cancelar e remover este pedido da lista?'),
+          createElement('div', {}, [
+            createElement('button', { type: 'button', class: 'button-secondary', 'data-admin-action': 'cancel-dismiss' }, 'Cancelar ação'),
+            createElement('button', { type: 'button', class: 'button-primary', 'data-admin-action': 'cancel-confirm' }, 'Sim, cancelar pedido')
+          ])
+        ])
+        : null
     ]);
 
     card.querySelectorAll('[data-admin-action]').forEach((button) => {
       button.addEventListener('click', () => {
-        this.applyAdminOrderAction(order.orderCode, button.getAttribute('data-admin-action'));
+        const action = button.getAttribute('data-admin-action');
+        if (action === 'cancel') {
+          this.pendingOrderCancellationCode = order.orderCode;
+          this.render();
+          return;
+        }
+        if (action === 'cancel-dismiss') {
+          this.pendingOrderCancellationCode = '';
+          this.render();
+          return;
+        }
+        if (action === 'cancel-confirm') {
+          this.pendingOrderCancellationCode = '';
+          this.applyAdminOrderAction(order.orderCode, 'cancel');
+          return;
+        }
+        this.applyAdminOrderAction(order.orderCode, action);
       });
     });
     return card;
@@ -3506,6 +3538,7 @@ export class GrowGardenModule {
   async applyAdminOrderAction(orderCode, action) {
     const order = this.manualOrders.find((item) => item.orderCode === orderCode);
     if (!order) return;
+    this.adminOrderMessage = '';
     const patch = {};
     if (action === 'confirm-payment') {
       Object.assign(patch, { paymentStatus: 'confirmed', orderStatus: 'paid', adminNote: 'Pagamento confirmado manualmente.' });
@@ -3516,7 +3549,12 @@ export class GrowGardenModule {
     } else if (action === 'delivered') {
       Object.assign(patch, { orderStatus: 'delivered', deliveryStatus: 'delivered' });
     } else if (action === 'cancel') {
-      Object.assign(patch, { orderStatus: 'cancelled', paymentStatus: order.paymentStatus === 'confirmed' ? 'confirmed' : 'cancelled' });
+      Object.assign(patch, {
+        orderStatus: 'cancelled',
+        paymentStatus: order.paymentStatus === 'confirmed' ? 'confirmed' : 'cancelled',
+        archived: true,
+        archivedAt: new Date().toISOString()
+      });
     }
     if (this.isLocalOrderStorageMode()) {
       if (!this.adminAccess.authorized) {
@@ -3525,6 +3563,7 @@ export class GrowGardenModule {
       }
       const updated = this.localOrderRepository.update(orderCode, patch);
       if (updated) Object.assign(order, updated);
+      if (action === 'cancel' && updated) this.adminOrderMessage = 'Pedido cancelado e removido da lista.';
       this.render();
       return;
     }
@@ -3542,6 +3581,7 @@ export class GrowGardenModule {
     }
     if (response.ok && result.order) {
       Object.assign(order, result.order);
+      if (action === 'cancel') this.adminOrderMessage = 'Pedido cancelado e removido da lista.';
     }
     this.render();
   }
