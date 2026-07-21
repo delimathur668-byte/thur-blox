@@ -16,6 +16,8 @@ const ROUTE_VIEW_MAP = Object.freeze({
   '/brainrot': 'brainrot',
   '/brainrots': 'brainrot',
   '/roube-um-brainrot': 'brainrot',
+  '/blox-fruits': 'blox-fruits',
+  '/category/blox-fruits': 'blox-fruits',
   '/grow-garden': 'grow-garden',
   '/grow-garden-2': 'grow-garden',
   '/terms': 'terms',
@@ -49,6 +51,7 @@ const loadJsonDocument = async (url, fallback = {}) => {
 
 const isBrainrotRoute = (value) => /^\/?(brainrot|brainrots|roube-um-brainrot)(\/|$)/i.test(String(value || ''));
 const isGrowGardenRoute = (value) => /^\/?(grow-garden|grow-garden-2)(\/|$)/i.test(String(value || ''));
+const isBloxFruitsRoute = (value) => /^\/?(blox-fruits|category\/blox-fruits)(\/|$)/i.test(String(value || ''));
 const isAdminRoute = (value) => /^\/?(admin|painel|support-admin|orders-admin|stock-admin|suporte-admin|pedidos-admin|estoque|produtos-admin)(\/|$)/i.test(String(value || ''));
 
 const getAdminInitialPanelTab = () => {
@@ -66,7 +69,8 @@ const getRequestedView = () => {
   const hashPath = window.location.hash.replace(/^#/, '').replace(/^!/, '');
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
 
-  if (isBrainrotRoute(queryView) || isBrainrotRoute(hashPath) || isBrainrotRoute(path)) return 'brainrot';
+  if (isBrainrotRoute(queryView) || isBrainrotRoute(hashPath) || isBrainrotRoute(path)) return 'home';
+  if (isBloxFruitsRoute(queryView) || isBloxFruitsRoute(hashPath) || isBloxFruitsRoute(path)) return 'blox-fruits';
   if (isGrowGardenRoute(queryView) || isGrowGardenRoute(hashPath) || isGrowGardenRoute(path)) return 'grow-garden';
   if (isAdminRoute(queryView) || isAdminRoute(hashPath) || isAdminRoute(path)) return 'admin';
   if (queryView === 'terms' || queryView === 'termos' || /^\/?(terms|termos)(\/|$)/i.test(hashPath)) return 'terms';
@@ -74,7 +78,8 @@ const getRequestedView = () => {
 };
 
 const routeForView = (view) => {
-  if (view === 'brainrot') return '/brainrot';
+  if (view === 'brainrot') return '/';
+  if (view === 'blox-fruits') return '/blox-fruits';
   if (view === 'grow-garden') return '/grow-garden-2';
   if (view === 'admin') return '/admin';
   if (view === 'terms') return '/terms';
@@ -197,6 +202,8 @@ const initialize = async () => {
         new BrainrotModule({ root, ...state.brainrotData, onNavigate: navigate });
       } else if (state.currentView === 'grow-garden') {
         new GrowGardenModule({ root, onNavigate: navigate, adminSession: state.authService.getSession(), authService: state.authService });
+      } else if (state.currentView === 'blox-fruits') {
+        new GrowGardenModule({ root, onNavigate: navigate, adminSession: state.authService.getSession(), authService: state.authService, storeGame: 'blox-fruits' });
       }
     };
 

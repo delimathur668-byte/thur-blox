@@ -127,16 +127,16 @@ test('app shell loads pets, mutations, market values and images', () => {
 });
 
 test('portal game cards use the correct game cover assets', () => {
-  assert.ok(homePortalCode.includes("brainrot: '/assets/portal/roube-um-brainrot.webp'"), 'Brainrot portal card should use the Roube um Brainrot cover asset');
+  assert.ok(homePortalCode.includes("'blox-fruits': '/assets/blox-fruits/blox-fruits-category.webp'"), 'Blox Fruits portal card should use its original category artwork');
   assert.ok(homePortalCode.includes("'grow-garden': '/assets/portal/grow-a-garden-2.webp'"), 'Grow a Garden portal card should use the Grow a Garden cover asset');
-  assert.ok(existsSync(resolve(projectRoot, 'public', 'assets', 'portal', 'roube-um-brainrot.webp')), 'Brainrot portal cover must exist');
+  assert.ok(existsSync(resolve(projectRoot, 'assets', 'blox-fruits', 'blox-fruits-category.webp')), 'Blox Fruits portal cover must exist');
   assert.ok(existsSync(resolve(projectRoot, 'public', 'assets', 'portal', 'grow-a-garden-2.webp')), 'Grow a Garden portal cover must exist');
 });
 
-test('Brainrot maintenance mode gates the module without deleting legacy code', () => {
-  assert.equal(BRAINROT_MAINTENANCE_CONFIG.enabled, true);
+test('Brainrot legacy stays internal while public routes return home', () => {
+  assert.equal(typeof BRAINROT_MAINTENANCE_CONFIG.enabled, 'boolean');
   assert.ok(brainrotMaintenanceConfigCode.includes('BRAINROT_MAINTENANCE_CONFIG'), 'central maintenance config must exist');
-  assert.ok(appCode.includes('BRAINROT_MAINTENANCE_CONFIG.enabled'), 'app must check maintenance before opening Brainrot');
+  assert.ok(appCode.includes("return 'home'"), 'legacy public routes must return to the portal');
   assert.ok(appCode.includes("await import('./src/components/BrainrotModule.js')"), 'Brainrot module must load only after the maintenance gate');
   assert.ok(appCode.includes("await import('./src/services/BrainrotDataService.js')"), 'Brainrot data service must load only after the maintenance gate');
   assert.ok(brainrotMaintenanceConfigCode.includes('Roube um Brainrot esta em manutencao'), 'maintenance config must show the requested title');
@@ -233,7 +233,7 @@ test('Grow a Garden 2 commerce creates manual local orders without a backend API
 });
 
 test('Grow a Garden 2 store catalog contains only the requested products by section', () => {
-  const products = growGardenStoreProductsData.products;
+  const products = growGardenStoreProductsData.products.filter((product) => !product.game || product.game === 'grow-garden-2');
   const bySlug = new Map(products.map((product) => [product.slug, product]));
   const expected = [
     ['hypno-bloom-seed', 'seeds', 'Hypno Bloom Seed', 1999, 60, 790, 'out_of_stock', 0, false],
@@ -303,12 +303,13 @@ test('Grow a Garden 2 store catalog contains only the requested products by sect
 });
 
 test('Grow a Garden 2 keeps new Firefly, Sun Bloom and Star Fruit products available', () => {
-  assert.equal(growGardenStoreProductsData.products.length, 24);
+  const growProducts = growGardenStoreProductsData.products.filter((product) => !product.game || product.game === 'grow-garden-2');
+  assert.equal(growProducts.length, 24);
   assert.deepEqual(
-    growGardenStoreProductsData.products.reduce((counts, product) => ({ ...counts, [product.category]: (counts[product.category] || 0) + 1 }), {}),
+    growProducts.reduce((counts, product) => ({ ...counts, [product.category]: (counts[product.category] || 0) + 1 }), {}),
     { seeds: 11, pets: 6, gears: 3, packages: 4 }
   );
-  const productsByCategory = growGardenStoreProductsData.products.reduce((grouped, product) => {
+  const productsByCategory = growProducts.reduce((grouped, product) => {
     grouped[product.category] = grouped[product.category] || [];
     grouped[product.category].push(product);
     return grouped;
@@ -920,6 +921,25 @@ test('SupportService persists conversations and admin replies locally', () => {
   assert.equal(stored.messages.at(-1).senderType, 'admin');
   assert.throws(() => service.sendMessage(conversation.id, { body: '' }), /Mensagem/);
   assert.throws(() => service.sendMessage(conversation.id, { body: 'x'.repeat(SUPPORT_MESSAGE_MAX_LENGTH + 1) }), /maximo/);
+});
+
+test('Blox Fruits category exposes five Pix products with isolated storefront inventory', () => {
+  const products = growGardenStoreProductsData.products.filter((product) => product.game === 'blox-fruits');
+  assert.equal(products.length, 5);
+  assert.deepEqual(products.map((product) => product.slug), [
+    'kitsune-fruit',
+    'dragon-fruit',
+    'leopard-fruit',
+    'dough-fruit',
+    'pacote-iniciante-blox-fruits'
+  ]);
+  assert.equal(products.every((product) => product.paymentMethod === 'pix' && product.saleEnabled === true), true);
+  assert.equal(products.every((product) => product.stockStatus === 'available' && product.availableStock > 0), true);
+  assert.ok(appCode.includes("storeGame: 'blox-fruits'"), 'Blox Fruits route must open the isolated storefront');
+  assert.ok(growGardenModuleCode.includes('getPublicStoreProducts'), 'public storefront must filter products by game');
+  products.forEach((product) => {
+    assert.ok(existsSync(resolve(projectRoot, product.image.replace('/assets/', 'assets/'))), `${product.slug} artwork must exist`);
+  });
 });
 
 test('portal exposes FAQ, approved reviews and original THUR BLOX terms route', () => {

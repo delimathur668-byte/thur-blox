@@ -583,6 +583,7 @@ const handleAccessApi = async ({ request, response, url }) => {
 const isFrontendRoute = (pathname) => (
   /^\/(?:brainrot|brainrots|roube-um-brainrot)(?:\/|$)/i.test(pathname)
   || /^\/(?:grow-garden|grow-garden-2)(?:\/|$)/i.test(pathname)
+  || /^\/(?:blox-fruits|category\/blox-fruits)(?:\/|$)/i.test(pathname)
   || /^\/(?:terms|termos)(?:\/|$)/i.test(pathname)
   || /^\/(?:admin|painel|support-admin|orders-admin|stock-admin|suporte-admin|pedidos-admin|estoque|produtos-admin)(?:\/|$)/i.test(pathname)
 );

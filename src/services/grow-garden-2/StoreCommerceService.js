@@ -376,7 +376,7 @@ export class StoreCommerceService {
     const soldOut = ['sold_out', 'out_of_stock'].includes(String(stockStatus).toLowerCase());
     return {
       ...product,
-      game: 'grow-garden-2',
+      game: product.game || 'grow-garden-2',
       slug: product.slug,
       seedSlug: product.slug,
       imageUrl: product.image,

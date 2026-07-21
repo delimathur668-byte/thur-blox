@@ -7,7 +7,7 @@ import { SupportChatWidget } from './SupportChatWidget.js';
 import { createElement } from './ui-utils.js';
 
 const PORTAL_CARD_IMAGES = {
-  brainrot: '/assets/portal/roube-um-brainrot.webp',
+  'blox-fruits': '/assets/blox-fruits/blox-fruits-category.webp',
   'grow-garden': '/assets/portal/grow-a-garden-2.webp'
 };
 const APP_LOGO = '/assets/brand/delima-blox-logo.webp';
@@ -106,15 +106,15 @@ const buildPortalIcon = (name, className = 'portal-inline-icon') => {
 
 const GAME_CARDS = [
   {
-    slug: 'brainrot',
-    title: 'ROUBE UM BRAINROT',
-    subtitle: 'Veja valores, descubra equivalências e acompanhe o módulo de raridades do jogo.',
-    image: PORTAL_CARD_IMAGES.brainrot,
-    alt: 'Capa do jogo Roube um Brainrot',
-    tags: ['Valores', 'Equivalências', 'Raridades'],
+    slug: 'blox-fruits',
+    title: 'BLOX FRUITS',
+    subtitle: 'Frutas, contas, gamepasses, serviços e pacotes para sua jornada.',
+    image: PORTAL_CARD_IMAGES['blox-fruits'],
+    alt: 'Arte original da categoria Blox Fruits',
+    tags: ['Frutas', 'Kitsune', 'Dragon', 'Leopard', 'Dough', 'Contas', 'Gamepasses', 'Serviços', 'Pacotes'],
     action: 'Ver produtos',
-    icon: 'BT',
-    tone: 'brainrot'
+    icon: 'BF',
+    tone: 'blox-fruits'
   },
   {
     slug: 'grow-garden',
@@ -1358,7 +1358,7 @@ export class HomePortal {
             createElement('img', { src: PORTAL_CARD_IMAGES['grow-garden'], alt: '', class: 'portal-showcase-image garden-showcase' })
           ]),
           createElement('div', { class: 'portal-showcase-card brainrot-showcase-card' }, [
-            createElement('img', { src: PORTAL_CARD_IMAGES.brainrot, alt: '', class: 'portal-showcase-image brainrot-showcase' })
+            createElement('img', { src: PORTAL_CARD_IMAGES['blox-fruits'], alt: '', class: 'portal-showcase-image brainrot-showcase' })
           ]),
           createElement('div', { class: 'portal-showcase-logo-card' }, [
             createElement('img', { src: APP_LOGO, alt: '', class: 'portal-showcase-logo' })

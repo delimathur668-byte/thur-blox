@@ -17,7 +17,7 @@ const ASSETS = [
   'src/data/grow-garden-2/seed-images.json',
   'src/data/grow-garden-2/store-products.json',
   'src/data/grow-garden-2/store-coupons.example.json',
-  'assets/portal/roube-um-brainrot.webp',
+  'assets/blox-fruits/blox-fruits-category.webp',
   'assets/portal/grow-a-garden-2.webp',
   'assets/grow-garden-2/seeds/seed-placeholder.webp',
   'assets/grow-garden-2/seeds/mushroom.webp',

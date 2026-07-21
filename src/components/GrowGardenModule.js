@@ -28,6 +28,28 @@ const ORDER_API_PATH = '/store/orders';
 const SUPPORT_BOT_AVATAR = '/assets/support/delima-blox-support-bot.png';
 const SUPPORT_ADMIN_AVATAR = '/assets/support/delima-blox-support-admin.png';
 
+const STORE_GAME_CONFIG = Object.freeze({
+  'grow-garden-2': {
+    title: 'Grow a Garden 2', subtitle: 'Loja de seeds, pets e gears', catalogLabel: 'Catalogo seeds',
+    categories: [
+      { key: 'seeds', title: 'SEEDS (GROW A GARDEN 2)', icon: '🌱' },
+      { key: 'pets', title: 'PETS (GROW A GARDEN 2)', icon: '🔥' },
+      { key: 'gears', title: 'GEARS (GROW A GARDEN 2)', icon: '🛠' },
+      { key: 'packages', title: 'PACOTES (GROW A GARDEN 2)', icon: '📦', subtitle: 'Promoção limitada' }
+    ]
+  },
+  'blox-fruits': {
+    title: 'Blox Fruits', subtitle: 'Frutas, contas, gamepasses e serviços', catalogLabel: 'Segurança',
+    categories: [
+      { key: 'fruits', title: 'FRUTAS', icon: '🍈' },
+      { key: 'accounts', title: 'CONTAS', icon: '👤' },
+      { key: 'gamepasses', title: 'GAMEPASSES', icon: '🎫' },
+      { key: 'services', title: 'SERVIÇOS', icon: '⚡' },
+      { key: 'blox-packages', title: 'PACOTES', icon: '📦', subtitle: 'Combos em destaque' }
+    ]
+  }
+});
+
 const ORDER_ERROR_MESSAGES = {
   API_NOT_CONFIGURED: 'O servico de pedidos ainda nao foi configurado.',
   API_OFFLINE: 'O servico de pedidos esta temporariamente indisponivel.',
@@ -87,11 +109,13 @@ class OrderServiceError extends Error {
 }
 
 export class GrowGardenModule {
-  constructor({ root, onNavigate, initialTab = 'sementes', initialAdminPanelTab = 'support', adminSession = null, authService = new AuthService() }) {
+  constructor({ root, onNavigate, initialTab = 'sementes', initialAdminPanelTab = 'support', adminSession = null, authService = new AuthService(), storeGame = 'grow-garden-2' }) {
     this.root = root;
     this.onNavigate = onNavigate;
     this.authService = authService;
     this.adminSession = adminSession || this.authService.getSession();
+    this.storeGame = STORE_GAME_CONFIG[storeGame] ? storeGame : 'grow-garden-2';
+    this.storeGameConfig = STORE_GAME_CONFIG[this.storeGame];
     this.activeTab = initialTab === 'admin' && !this.authService.isAdminSession(this.adminSession) ? 'sementes' : initialTab;
     this.currentUser = this.authService.getCurrentUser();
     this.selectedSeedSlug = null;
@@ -235,8 +259,8 @@ export class GrowGardenModule {
       createElement('div', { class: 'portal-brand garden-brand' }, [
         createElement('button', { type: 'button', class: 'garden-back-button', 'data-action': 'go-home', 'aria-label': 'Voltar ao portal' }, ''),
         createElement('div', { class: 'garden-brand-copy' }, [
-          createElement('strong', {}, 'Grow a Garden 2'),
-          createElement('small', {}, 'Loja de seeds, pets e gears')
+          createElement('strong', {}, this.storeGameConfig.title),
+          createElement('small', {}, this.storeGameConfig.subtitle)
         ])
       ]),
       createElement('div', { class: 'garden-header-actions' }, [
@@ -287,7 +311,7 @@ export class GrowGardenModule {
       { id: 'inicio', label: 'Inicio', icon: 'home' },
       { id: 'sementes', label: 'Loja', icon: 'store' },
       { id: 'carrinho', label: `Carrinho (${cartCount})`, icon: 'cart' },
-      { id: 'catalogo', label: 'Catalogo seeds', icon: 'seed' },
+      { id: 'catalogo', label: this.storeGameConfig.catalogLabel, icon: 'seed' },
       { id: 'mais', label: 'Mais', icon: 'more' }
     ];
 
@@ -332,8 +356,9 @@ export class GrowGardenModule {
   }
 
   buildWelcomeSection() {
-    const available = this.storeProducts.filter((product) => !this.isSoldOut(product));
-    const deals = this.storeProducts
+    const publicProducts = this.getPublicStoreProducts();
+    const available = publicProducts.filter((product) => !this.isSoldOut(product));
+    const deals = publicProducts
       .filter((product) => Number.isInteger(product.discountPercent))
       .slice(0, 3);
     const section = createElement('div', { class: 'garden-home-grid' }, [
@@ -415,7 +440,7 @@ export class GrowGardenModule {
         : 'Checkout indisponivel no momento.'),
       createElement('div', { class: 'status-metrics' }, [
         this.buildStatusMetric('Pix', STORE_COMMERCE_CONFIG.pix?.mode || 'manual'),
-        this.buildStatusMetric('Produtos', String(this.storeProducts.length || 0))
+        this.buildStatusMetric('Produtos', String(this.getPublicStoreProducts().length || 0))
       ])
     ]);
   }
@@ -428,13 +453,18 @@ export class GrowGardenModule {
   }
 
   buildCategoryCard(category) {
-    const count = this.storeProducts.filter((product) => product.category === category.key).length;
+    const count = this.getPublicStoreProducts().filter((product) => product.category === category.key).length;
     const label = this.formatCategory(category.key);
     const descriptions = {
       seeds: 'Sementes e itens unitarios',
       pets: 'Companheiros raros para evoluir',
       gears: 'Itens de apoio para o jardim',
-      packages: 'Combos e ofertas especiais'
+      packages: 'Combos e ofertas especiais',
+      fruits: 'Frutas para sua jornada',
+      accounts: 'Contas selecionadas',
+      gamepasses: 'Vantagens para sua conta',
+      services: 'Serviços com entrega manual',
+      'blox-packages': 'Combos e ofertas especiais'
     };
     return createElement('button', {
       type: 'button',
@@ -624,7 +654,7 @@ export class GrowGardenModule {
     if (this.loading) {
       return createElement('div', { class: 'garden-loading panel' }, [
         createElement('h2', {}, 'Carregando loja...'),
-        createElement('p', {}, 'Buscando os produtos comerciais do Grow a Garden 2.')
+        createElement('p', {}, `Buscando os produtos comerciais de ${this.storeGameConfig.title}.`)
       ]);
     }
 
@@ -644,7 +674,12 @@ export class GrowGardenModule {
       .filter(Boolean);
 
     return createElement('div', { class: 'garden-storefront' }, [
-      this.hasActiveStoreFilters() ? this.buildStoreControls() : null,
+      this.buildStoreControls(),
+      this.storeGame === 'blox-fruits' ? createElement('aside', { class: 'garden-welcome panel', role: 'note' }, [
+        createElement('strong', {}, 'Compra segura'),
+        createElement('p', {}, 'Nunca envie sua senha, cookie ou código de autenticação.'),
+        createElement('small', {}, 'A Thur/Delima Blox não é afiliada oficialmente à Roblox, Blox Fruits ou qualquer jogo citado.')
+      ]) : null,
       categorySections.length > 0
         ? createElement('div', { class: 'store-sections' }, categorySections)
         : this.buildEmptyState('Nenhum produto encontrado', 'Ajuste a busca ou o filtro de categoria.')
@@ -652,6 +687,16 @@ export class GrowGardenModule {
   }
 
   buildInformativeSeedsSection() {
+    if (this.storeGame === 'blox-fruits') {
+      return createElement('div', { class: 'garden-home-grid' }, [
+        createElement('section', { class: 'garden-welcome panel' }, [
+          createElement('span', { class: 'garden-kicker' }, 'Compra segura'),
+          createElement('h2', {}, 'Proteja sua conta'),
+          createElement('p', {}, 'Nunca envie sua senha, cookie ou código de autenticação.'),
+          createElement('p', {}, 'A Thur/Delima Blox não é afiliada oficialmente à Roblox, Blox Fruits ou qualquer jogo citado.')
+        ])
+      ]);
+    }
     const grid = createElement('div', { class: 'seed-grid' });
     if (this.seeds.length === 0) {
       grid.append(this.buildEmptyState('Nenhuma semente carregada', 'A base real nao retornou registros para exibir.'));
@@ -681,12 +726,15 @@ export class GrowGardenModule {
   }
 
   getStoreCategories() {
-    return [
-      { key: 'seeds', title: 'SEEDS (GROW A GARDEN 2)', icon: '🌱' },
-      { key: 'pets', title: 'PETS (GROW A GARDEN 2)', icon: '🔥' },
-      { key: 'gears', title: 'GEARS (GROW A GARDEN 2)', icon: '🛠' },
-      { key: 'packages', title: 'PACOTES (GROW A GARDEN 2)', icon: '📦', subtitle: 'Promoção limitada' }
-    ];
+    return this.storeGameConfig.categories;
+  }
+
+  getAllStoreCategories() {
+    return Object.values(STORE_GAME_CONFIG).flatMap((config) => config.categories);
+  }
+
+  getPublicStoreProducts() {
+    return this.storeProducts.filter((product) => (product.game || 'grow-garden-2') === this.storeGame);
   }
 
   hasActiveStoreFilters() {
@@ -702,7 +750,7 @@ export class GrowGardenModule {
       createElement('div', { class: 'store-toolbar-top' }, [
         createElement('div', {}, [
           createElement('span', { class: 'garden-kicker' }, 'Marketplace gamer'),
-          createElement('h2', {}, 'Loja Grow a Garden 2'),
+          createElement('h2', {}, `Loja ${this.storeGameConfig.title}`),
           createElement('p', {}, `${visibleCount} produto${visibleCount === 1 ? '' : 's'} encontrado${visibleCount === 1 ? '' : 's'}.`)
         ]),
         createElement('input', {
@@ -715,13 +763,7 @@ export class GrowGardenModule {
       ]),
       createElement('div', { class: 'store-toolbar-controls' }, [
         createElement('div', { class: 'store-filter-tabs' }, [
-          ...[
-            ['all', 'Todos'],
-            ['seeds', 'Seeds'],
-            ['pets', 'Pets'],
-            ['gears', 'Gears'],
-            ['packages', 'Pacotes']
-          ].map(([value, label]) => createElement('button', {
+          ...[['all', 'Todos'], ...this.getStoreCategories().map((category) => [category.key, this.formatCategory(category.key)])].map(([value, label]) => createElement('button', {
             type: 'button',
             class: `tab-button ${this.storeCategoryFilter === value ? 'active' : ''}`,
             'data-category': value
@@ -787,14 +829,15 @@ export class GrowGardenModule {
 
   getVisibleStoreProducts() {
     const search = this.storeSearch.trim().toLowerCase();
-    const products = this.storeProducts.filter((product) => {
+    const products = this.getPublicStoreProducts().filter((product) => {
       if (String(product.stockStatus || '').toLowerCase() === 'hidden') return false;
       if (this.storeCategoryFilter !== 'all' && product.category !== this.storeCategoryFilter) return false;
       if (this.storeStockFilter === 'available' && this.isSoldOut(product)) return false;
       if (['sold_out', 'out_of_stock'].includes(this.storeStockFilter) && !this.isSoldOut(product)) return false;
       if (this.storeStockFilter === 'deals' && !Number.isInteger(product.discountPercent)) return false;
       if (!search) return true;
-      return product.name.toLowerCase().includes(search) || product.slug.includes(search);
+      return [product.name, product.slug, product.description, this.formatCategory(product.category)]
+        .some((value) => String(value || '').toLowerCase().includes(search));
     });
     return [...products].sort((a, b) => {
       if (this.storeSort === 'price_asc') return (a.salePriceInCents || 0) - (b.salePriceInCents || 0);
@@ -2345,7 +2388,12 @@ export class GrowGardenModule {
       seeds: 'Seeds',
       pets: 'Pets',
       gears: 'Gears',
-      packages: 'Pacotes'
+      packages: 'Pacotes',
+      fruits: 'Frutas',
+      accounts: 'Contas',
+      gamepasses: 'Gamepasses',
+      services: 'Serviços',
+      'blox-packages': 'Pacotes'
     };
     return labels[category] || 'Produto';
   }
@@ -2527,7 +2575,7 @@ export class GrowGardenModule {
           }, this.adminStockSaving && !this.adminStockSavingSlug ? 'Salvando...' : pendingCount > 0 ? `Salvar alteracoes (${pendingCount})` : 'Salvar alteracoes')
         ])
       ]),
-      createElement('div', { class: 'admin-stock-groups' }, this.getStoreCategories().map((category) => {
+      createElement('div', { class: 'admin-stock-groups' }, this.getAllStoreCategories().map((category) => {
         const products = this.storeProducts.filter((product) => product.category === category.key);
         return createElement('div', { class: 'admin-stock-group' }, [
           createElement('h4', {}, this.formatCategory(category.key)),
@@ -3124,7 +3172,7 @@ export class GrowGardenModule {
       ]),
       createElement('fieldset', { class: 'admin-coupon-checks' }, [
         createElement('legend', {}, 'Categorias aplicaveis'),
-        ...this.getStoreCategories().map((category) => createElement('label', { class: 'admin-stock-check' }, [
+        ...this.getAllStoreCategories().map((category) => createElement('label', { class: 'admin-stock-check' }, [
           createElement('input', {
             type: 'checkbox',
             name: 'categories',
