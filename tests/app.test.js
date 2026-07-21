@@ -944,6 +944,17 @@ test('store catalogs use root-absolute JSON paths with content-type validation',
   assert.ok(storeServiceCode.includes("contentType.includes('application/json')"));
 });
 
+test('game pages open on the store with a compact hero and visible products', () => {
+  assert.ok(growGardenModuleCode.includes("initialTab = 'sementes'"));
+  assert.ok(growGardenModuleCode.includes("{ id: 'sementes', label: 'Loja'"));
+  assert.equal(growGardenModuleCode.includes("{ id: 'inicio', label: 'Inicio'"), false);
+  assert.ok(growGardenModuleCode.includes("createElement('h2', {}, 'Produtos disponíveis')"));
+  assert.ok(growGardenModuleCode.includes('buildCompactStoreStatus()'));
+  assert.ok(styles.includes('.garden-storefront .garden-hero'));
+  assert.ok(styles.includes('height: 158px'));
+  assert.ok(styles.includes('height: 104px'));
+});
+
 test('portal exposes FAQ, approved reviews and original THUR BLOX terms route', () => {
   assert.equal(homePortalCode.includes('buildFaqSection()'), true);
   assert.equal(homePortalCode.includes("review.status === 'approved'"), true);

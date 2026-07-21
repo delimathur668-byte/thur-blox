@@ -288,12 +288,12 @@ export class GrowGardenModule {
         createElement('div', { class: 'garden-hero-actions' }, [
           createElement('button', { type: 'button', class: 'button-primary', 'data-action': 'see-store' }, 'Explorar loja'),
           createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'see-catalog' }, this.storeGameConfig.catalogLabel)
-        ])
+        ]),
+        this.buildCompactStoreStatus()
       ]),
       createElement('div', { class: 'garden-hero-art' }, [
         createElement('div', { class: 'garden-showcase' }, [
-          createElement('img', { class: 'category-hero-image', src: this.storeGameConfig.heroImage, alt: `Categoria ${this.storeGameConfig.title}` }),
-          this.buildStoreStatusCard()
+          createElement('img', { class: 'category-hero-image', src: this.storeGameConfig.heroImage, alt: `Categoria ${this.storeGameConfig.title}` })
         ])
       ])
     ]);
@@ -312,7 +312,6 @@ export class GrowGardenModule {
     const tabs = createElement('nav', { class: 'garden-tabs' });
     const cartCount = this.getCartCount();
     const navigationItems = [
-      { id: 'inicio', label: 'Inicio', icon: 'home' },
       { id: 'sementes', label: 'Loja', icon: 'store' },
       { id: 'carrinho', label: `Carrinho (${cartCount})`, icon: 'cart' },
       { id: 'catalogo', label: this.storeGameConfig.catalogLabel, icon: 'seed' },
@@ -734,6 +733,17 @@ export class GrowGardenModule {
     return this.storeGameConfig.categories;
   }
 
+  buildCompactStoreStatus() {
+    const productCount = this.getPublicStoreProducts().length;
+    const active = STORE_COMMERCE_CONFIG.commerceEnabled === true;
+    return createElement('div', { class: `compact-store-status ${active ? 'active' : 'offline'}` }, [
+      createElement('span', { class: 'status-dot', 'aria-hidden': 'true' }, ''),
+      createElement('strong', {}, active ? 'Loja ativa' : 'Checkout indisponível'),
+      createElement('span', {}, `Pix ${STORE_COMMERCE_CONFIG.pix?.mode || 'manual'}`),
+      createElement('span', {}, `${productCount} produto${productCount === 1 ? '' : 's'}`)
+    ]);
+  }
+
   getAllStoreCategories() {
     return Object.values(STORE_GAME_CONFIG).flatMap((config) => config.categories);
   }
@@ -754,8 +764,8 @@ export class GrowGardenModule {
     const controls = createElement('div', { class: 'store-controls' }, [
       createElement('div', { class: 'store-toolbar-top' }, [
         createElement('div', {}, [
-          createElement('span', { class: 'garden-kicker' }, 'Marketplace gamer'),
-          createElement('h2', {}, `Loja ${this.storeGameConfig.title}`),
+          createElement('span', { class: 'garden-kicker' }, this.storeGameConfig.title),
+          createElement('h2', {}, 'Produtos disponíveis'),
           createElement('p', {}, `${visibleCount} produto${visibleCount === 1 ? '' : 's'} encontrado${visibleCount === 1 ? '' : 's'}.`)
         ]),
         createElement('input', {
