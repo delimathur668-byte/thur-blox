@@ -1,5 +1,6 @@
 import { BRAINROT_MAINTENANCE_CONFIG } from '../config/brainrot-maintenance-config.js';
 import { AuthService } from '../services/AuthService.js';
+import { ReviewService } from '../services/ReviewService.js';
 import { LocalOrderRepository } from '../services/grow-garden-2/LocalOrderRepository.js';
 import { formatMoney } from '../services/grow-garden-2/StoreCommerceService.js';
 import { SupportChatWidget } from './SupportChatWidget.js';
@@ -216,6 +217,7 @@ export class HomePortal {
     this.session = this.authService.getSession();
     this.currentUser = this.authService.getCurrentUser();
     this.localOrderRepository = new LocalOrderRepository();
+    this.reviewService = new ReviewService();
     this.loginOpen = initialLoginOpen;
     this.loginRedirect = initialLoginRedirect;
     this.profileOpen = false;
@@ -229,6 +231,9 @@ export class HomePortal {
     this.accountOrderFilter = 'all';
     this.accountOrderSearch = '';
     this.selectedOrderCode = '';
+    this.thankYouOrderCode = '';
+    this.reviewMessage = '';
+    this.reviewError = '';
     this.paymentResumeMessage = '';
     this.paymentResumeStatus = '';
     this.productCatalog = [];
@@ -258,7 +263,9 @@ export class HomePortal {
   render() {
     this.root.innerHTML = '';
     const profileOrders = this.profileOpen ? this.getCustomerOrders() : [];
+    this.openNewPaidOrderThankYou(profileOrders);
     const selectedOrder = this.getSelectedCustomerOrder(profileOrders);
+    const thankYouOrder = this.getThankYouOrder();
     const mainContent = this.profileOpen
       ? [this.buildProfilePage(profileOrders)]
       : [
@@ -274,6 +281,7 @@ export class HomePortal {
       this.loginOpen ? this.buildLoginModal() : null,
       this.accountTab === 'denied' ? this.buildAccountModal() : null,
       selectedOrder ? this.buildOrderDetailsModal(selectedOrder) : null,
+      thankYouOrder ? this.buildThankYouModal(thankYouOrder) : null,
       new SupportChatWidget().render()
     ]);
     this.root.append(container);
@@ -653,6 +661,9 @@ export class HomePortal {
         this.render();
       });
     });
+    page.querySelectorAll('[data-order-thank-you]').forEach((button) => {
+      button.addEventListener('click', () => this.openThankYou(button.getAttribute('data-order-thank-you')));
+    });
     page.querySelectorAll('[data-continue-payment]').forEach((button) => {
       button.addEventListener('click', () => this.continueCustomerPayment(button.getAttribute('data-continue-payment')));
     });
@@ -724,6 +735,9 @@ export class HomePortal {
         this.paymentResumeStatus = '';
         this.render();
       });
+    });
+    overlay.querySelectorAll('[data-order-thank-you]').forEach((button) => {
+      button.addEventListener('click', () => this.openThankYou(button.getAttribute('data-order-thank-you')));
     });
     overlay.querySelectorAll('[data-continue-payment]').forEach((button) => {
       button.addEventListener('click', () => this.continueCustomerPayment(button.getAttribute('data-continue-payment')));
@@ -826,7 +840,9 @@ export class HomePortal {
       createElement('div', { class: 'account-order-right' }, [
         createElement('strong', { class: 'account-order-total' }, formatMoney(order.totalInCents, 'BRL')),
         createElement('span', { class: 'account-order-date' }, this.formatOrderDate(order.createdAt || order.updatedAt)),
-        this.canContinuePayment(order)
+        this.isPaidOrder(order)
+          ? createElement('button', { type: 'button', class: 'button-primary', 'data-order-thank-you': order.orderCode }, this.reviewService.getByOrderId(order.orderCode) ? 'Ver agradecimento' : 'Avaliar compra')
+          : this.canContinuePayment(order)
           ? createElement('button', { type: 'button', class: 'button-primary', 'data-continue-payment': order.orderCode }, 'Continuar pagamento')
           : createElement('button', { type: 'button', class: 'button-secondary', 'data-order-details': order.orderCode }, [
             createElement('span', { class: 'details-eye-icon', 'aria-hidden': 'true' }, ''),
@@ -931,6 +947,120 @@ export class HomePortal {
   getSelectedCustomerOrder(orders) {
     if (!this.selectedOrderCode) return null;
     return orders.find((order) => String(order.orderCode || '').toUpperCase() === this.selectedOrderCode.toUpperCase()) || null;
+  }
+
+  isPaidOrder(order) {
+    const payment = String(order?.paymentStatus || '').toLowerCase();
+    const status = String(order?.status || order?.orderStatus || '').toLowerCase();
+    const delivery = String(order?.deliveryStatus || '').toLowerCase();
+    return ['confirmed', 'paid', 'approved'].includes(payment) || ['paid', 'delivered'].includes(status) || delivery === 'delivered';
+  }
+
+  getThankYouOrder() {
+    if (!this.thankYouOrderCode) return null;
+    return this.getCustomerOrders().find((order) => String(order.orderCode || '').toUpperCase() === this.thankYouOrderCode.toUpperCase()) || null;
+  }
+
+  openNewPaidOrderThankYou(orders) {
+    if (this.thankYouOrderCode || !Array.isArray(orders) || orders.length === 0) return;
+    const order = orders.find((item) => this.isPaidOrder(item) && !this.reviewService.hasSeenThankYou(item.orderCode));
+    if (!order) return;
+    this.thankYouOrderCode = order.orderCode;
+    this.reviewService.markThankYouSeen(order.orderCode);
+  }
+
+  openThankYou(orderCode) {
+    const order = this.getCustomerOrders().find((item) => String(item.orderCode || '').toUpperCase() === String(orderCode || '').toUpperCase());
+    if (!order || !this.isPaidOrder(order)) return;
+    this.thankYouOrderCode = order.orderCode;
+    this.reviewService.markThankYouSeen(order.orderCode);
+    this.reviewMessage = '';
+    this.reviewError = '';
+    this.render();
+  }
+
+  buildThankYouModal(order) {
+    const items = this.getOrderItems(order);
+    const existingReview = this.reviewService.getByOrderId(order.orderCode);
+    const overlay = createElement('div', { class: 'thank-you-overlay' }, [
+      createElement('section', { class: 'thank-you-card', 'aria-labelledby': 'thank-you-title' }, [
+        createElement('button', { type: 'button', class: 'thank-you-close', 'data-action': 'close-thank-you', 'aria-label': 'Fechar' }, ''),
+        createElement('span', { class: 'thank-you-success-icon', 'aria-hidden': 'true' }, ''),
+        createElement('span', { class: 'garden-kicker' }, 'Pagamento confirmado'),
+        createElement('h2', { id: 'thank-you-title' }, 'Obrigado pela compra!'),
+        createElement('p', { class: 'thank-you-subtitle' }, 'Seu pedido foi confirmado com sucesso e ja esta sendo processado.'),
+        createElement('div', { class: 'thank-you-summary' }, [
+          this.buildDetailLine('Codigo do pedido', `#${order.orderCode}`),
+          this.buildDetailLine('Produtos', items.map((item) => item.productName || item.seedName).join(', ')),
+          this.buildDetailLine('Total pago', formatMoney(order.totalInCents, 'BRL')),
+          this.buildDetailLine('Status', this.getOrderVisualStatus(order).label),
+          this.buildDetailLine('Data', this.formatOrderDate(order.createdAt || order.updatedAt)),
+          this.buildDetailLine('Nick Roblox', order.robloxUsername ? `@${order.robloxUsername}` : 'Nao informado')
+        ]),
+        existingReview
+          ? createElement('div', { class: 'thank-you-reviewed' }, [
+            createElement('strong', {}, 'Voce ja avaliou esta compra.'),
+            createElement('span', { class: 'review-stars-static', 'aria-label': `${existingReview.rating} de 5 estrelas` }, '★'.repeat(existingReview.rating) + '☆'.repeat(5 - existingReview.rating)),
+            existingReview.comment ? createElement('p', {}, existingReview.comment) : null
+          ])
+          : this.buildReviewForm(order),
+        this.reviewError ? createElement('p', { class: 'checkout-message error' }, this.reviewError) : null,
+        this.reviewMessage ? createElement('p', { class: 'checkout-message success' }, this.reviewMessage) : null,
+        createElement('div', { class: 'thank-you-actions' }, [
+          createElement('button', { type: 'button', class: 'button-primary', 'data-action': 'thank-you-orders' }, 'Ver meus pedidos'),
+          createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'thank-you-store' }, 'Continuar comprando'),
+          createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'thank-you-support' }, 'Falar com suporte')
+        ])
+      ])
+    ]);
+    overlay.querySelector('[data-action="close-thank-you"]').addEventListener('click', () => { this.thankYouOrderCode = ''; this.render(); });
+    overlay.querySelector('[data-review-form]')?.addEventListener('submit', (event) => this.submitReview(event, order));
+    overlay.querySelector('[data-action="thank-you-orders"]').addEventListener('click', () => { this.thankYouOrderCode = ''; this.profileOpen = true; this.render(); });
+    overlay.querySelector('[data-action="thank-you-store"]').addEventListener('click', () => { this.thankYouOrderCode = ''; this.onSelect('grow-garden'); });
+    overlay.querySelector('[data-action="thank-you-support"]').addEventListener('click', () => { this.thankYouOrderCode = ''; this.render(); window.dispatchEvent(new CustomEvent('thur-blox-open-support')); });
+    return overlay;
+  }
+
+  buildReviewForm() {
+    return createElement('form', { class: 'purchase-review-form', 'data-review-form': 'true', novalidate: 'novalidate' }, [
+      createElement('div', {}, [
+        createElement('strong', {}, 'Conta pra gente como foi sua experiencia na Thur Blox.'),
+        createElement('p', {}, 'Escolha uma nota de 1 a 5 estrelas. O comentario e opcional.')
+      ]),
+      createElement('fieldset', { class: 'review-rating' }, [
+        createElement('legend', {}, 'Sua nota'),
+        ...[1, 2, 3, 4, 5].map((rating) => createElement('label', {}, [
+          createElement('input', { type: 'radio', name: 'rating', value: String(rating) }),
+          createElement('span', { 'aria-hidden': 'true' }, '★'),
+          createElement('small', {}, String(rating))
+        ]))
+      ]),
+      createElement('label', { class: 'review-comment-field' }, [
+        createElement('span', {}, 'Comentario (opcional)'),
+        createElement('textarea', { name: 'comment', maxlength: '1000', placeholder: 'Conte como foi sua experiencia...' })
+      ]),
+      createElement('button', { type: 'submit', class: 'button-primary' }, 'Enviar avaliacao')
+    ]);
+  }
+
+  submitReview(event, order) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    this.reviewError = '';
+    this.reviewMessage = '';
+    try {
+      this.reviewService.create({
+        orderId: order.orderCode,
+        customerName: order.customerName || order.customer_name || this.currentUser?.name || 'Cliente',
+        robloxNick: order.robloxUsername || '', rating: data.get('rating'), comment: data.get('comment'),
+        productNames: this.getOrderItems(order).map((item) => item.productName || item.seedName || 'Produto'),
+        total: order.totalInCents
+      });
+      this.reviewMessage = 'Obrigado pelo seu comentario! Sua opiniao ajuda a melhorar a Thur Blox.';
+    } catch (error) {
+      this.reviewError = error.message || 'Nao foi possivel enviar sua avaliacao.';
+    }
+    this.render();
   }
 
   buildEmptyOrdersState(isEmptyAccount) {

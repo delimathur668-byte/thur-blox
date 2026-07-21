@@ -9883,6 +9883,171 @@ body {
     linear-gradient(145deg, #05070d, #101325 62%, #07080d);
 }
 
+/* Post-payment thank-you and review */
+.thank-you-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+  background: rgba(2, 5, 10, .84);
+  backdrop-filter: blur(14px);
+}
+
+.thank-you-card {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: clamp(22px, 4vw, 40px);
+  border: 1px solid rgba(216, 255, 0, .4);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 0, rgba(216, 255, 0, .13), transparent 34%),
+    linear-gradient(145deg, #111923, #080d14 68%, #070a0f);
+  box-shadow: 0 34px 100px rgba(0, 0, 0, .6), 0 0 42px rgba(216, 255, 0, .07), inset 0 1px rgba(255, 255, 255, .05);
+  color: #fff;
+  text-align: center;
+  animation: thankYouIn .28s ease both;
+}
+
+@keyframes thankYouIn {
+  from { opacity: 0; transform: translateY(14px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.thank-you-card h2,
+.thank-you-card p { margin: 0; }
+.thank-you-card h2 { font-size: clamp(1.8rem, 5vw, 2.7rem); letter-spacing: -.04em; }
+.thank-you-subtitle { color: rgba(235, 242, 249, .7); line-height: 1.55; }
+
+.thank-you-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .05);
+  cursor: pointer;
+}
+
+.thank-you-close::before,
+.thank-you-close::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  top: 18px;
+  height: 2px;
+  background: #fff;
+}
+.thank-you-close::before { transform: rotate(45deg); }
+.thank-you-close::after { transform: rotate(-45deg); }
+
+.thank-you-success-icon {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border: 2px solid #d8ff00;
+  border-radius: 50%;
+  background: rgba(216, 255, 0, .09);
+  box-shadow: 0 0 30px rgba(216, 255, 0, .15);
+}
+.thank-you-success-icon::before {
+  content: "";
+  position: absolute;
+  width: 28px;
+  height: 14px;
+  left: 20px;
+  top: 23px;
+  border-left: 4px solid #d8ff00;
+  border-bottom: 4px solid #d8ff00;
+  transform: rotate(-45deg);
+}
+
+.thank-you-summary {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+  text-align: left;
+}
+.thank-you-summary .account-detail-line {
+  min-height: 74px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .04);
+}
+
+.purchase-review-form,
+.thank-you-reviewed {
+  width: 100%;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(216, 255, 0, .18);
+  border-radius: 16px;
+  background: rgba(216, 255, 0, .045);
+  text-align: left;
+}
+.purchase-review-form p { color: rgba(255, 255, 255, .6); font-size: .88rem; }
+
+.review-rating {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  border: 0;
+}
+.review-rating legend { width: 100%; margin-bottom: 8px; text-align: center; font-weight: 900; }
+.review-rating label { position: relative; display: grid; justify-items: center; cursor: pointer; }
+.review-rating input { position: absolute; opacity: 0; pointer-events: none; }
+.review-rating span { font-size: 2.25rem; color: rgba(255, 255, 255, .2); transition: color .18s ease, transform .18s ease; }
+.review-rating small { color: rgba(255, 255, 255, .55); }
+.review-rating label:hover span,
+.review-rating label:has(input:checked) span { color: #ffd400; transform: translateY(-2px) scale(1.06); text-shadow: 0 0 16px rgba(255, 212, 0, .28); }
+
+.review-comment-field { display: grid; gap: 7px; color: rgba(255, 255, 255, .75); font-weight: 850; }
+.review-comment-field textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 11px;
+  background: rgba(0, 0, 0, .3);
+  color: #fff;
+}
+.review-comment-field textarea:focus { outline: 0; border-color: rgba(216, 255, 0, .6); box-shadow: 0 0 0 3px rgba(216, 255, 0, .08); }
+.review-stars-static { color: #ffd400; font-size: 1.7rem; letter-spacing: 3px; }
+
+.thank-you-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.thank-you-actions button { min-height: 46px; }
+
+@media (max-width: 620px) {
+  .thank-you-overlay { padding: 8px; }
+  .thank-you-card { max-height: calc(100dvh - 16px); padding: 24px 14px; border-radius: 18px; }
+  .thank-you-summary,
+  .thank-you-actions { grid-template-columns: 1fr; }
+  .review-rating { gap: 3px; }
+  .review-rating span { font-size: 2rem; }
+}
+
 .account-shell {
   align-content: center;
   gap: 18px;

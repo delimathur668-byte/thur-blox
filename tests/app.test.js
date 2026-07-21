@@ -46,6 +46,7 @@ import { AdminAuthService } from '../src/services/AdminAuthService.js';
 import { InventoryOverrideService } from '../src/services/InventoryOverrideService.js';
 import { CouponAdminService } from '../src/services/CouponAdminService.js';
 import { SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
+import { ReviewService, REVIEW_STORAGE_KEY } from '../src/services/ReviewService.js';
 import { OrderStore } from '../server/store/OrderStore.js';
 import { SandboxPixPaymentGateway } from '../server/store/PaymentGateway.js';
 import { PixPayloadService } from '../server/store/PixPayloadService.js';
@@ -937,6 +938,23 @@ test('SupportService accepts a conversation with only name and message', () => {
   assert.equal(restored.messages.at(-1).body, 'Mensagem sem email e sem nick.');
   assert.equal(restoredService.listAdminConversations()[0].id, conversation.id);
   assert.equal(restoredService.getAdminUnreadCount(), 1);
+});
+
+test('ReviewService saves one pending review per paid order and remembers the thank-you screen', () => {
+  const storage = createMemoryStorage();
+  const service = new ReviewService({ storage, now: () => '2026-07-21T12:00:00.000Z' });
+  assert.throws(() => service.create({ orderId: 'THUR-1', rating: '' }), /Escolha uma nota/);
+  const review = service.create({
+    orderId: 'THUR-1', customerName: 'Cliente', robloxNick: 'Player', rating: 5,
+    comment: 'Compra excelente.', productNames: ['Sun Bloom Seed'], total: 1290
+  });
+  assert.equal(review.status, 'pending');
+  assert.equal(review.rating, 5);
+  assert.equal(JSON.parse(storage.getItem(REVIEW_STORAGE_KEY)).length, 1);
+  assert.throws(() => service.create({ orderId: 'thur-1', rating: 4 }), /ja avaliou/);
+  assert.equal(service.hasSeenThankYou('THUR-1'), false);
+  service.markThankYouSeen('THUR-1');
+  assert.equal(service.hasSeenThankYou('THUR-1'), true);
 });
 
 test('AdminAuthService accepts only authorized admin email before storing a session', async () => {
