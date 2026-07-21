@@ -142,6 +142,7 @@ export class GrowGardenModule {
     this.couponAdminService = new CouponAdminService();
     this.selectedSupportConversationId = null;
     this.supportAdminMessage = '';
+    this.pendingSupportClosureId = '';
     this.adminOrderMessage = '';
     this.pendingOrderCancellationCode = '';
     this.adminStockDrafts = {};
@@ -3263,7 +3264,7 @@ export class GrowGardenModule {
   }
 
   buildAdminSupportSection() {
-    const conversations = this.supportService.listAdminConversations();
+    const conversations = this.supportService.listActiveAdminConversations();
     const selectedId = conversations.some((conversation) => conversation.id === this.selectedSupportConversationId)
       ? this.selectedSupportConversationId
       : conversations[0]?.id;
@@ -3280,7 +3281,7 @@ export class GrowGardenModule {
       conversations.length === 0
         ? createElement('div', { class: 'admin-support-empty' }, [
           createElement('span', { class: 'admin-empty-chat-icon', 'aria-hidden': 'true' }, ''),
-          createElement('strong', {}, 'Nenhuma mensagem ainda'),
+          createElement('strong', {}, 'Nenhuma conversa aberta no momento.'),
           createElement('p', {}, 'Quando um cliente chamar no chat, a conversa aparecera aqui.')
         ])
         : createElement('div', { class: 'admin-support-layout' }, [
@@ -3294,7 +3295,15 @@ export class GrowGardenModule {
     });
     section.querySelector('[data-support-action="reply"]')?.addEventListener('submit', (event) => this.replyToSupportConversation(event));
     section.querySelector('[data-support-action="resolve"]')?.addEventListener('click', () => this.resolveSupportConversation(selectedConversation?.id));
-    section.querySelector('[data-support-action="close"]')?.addEventListener('click', () => this.closeSupportConversation(selectedConversation?.id));
+    section.querySelector('[data-support-action="close"]')?.addEventListener('click', () => {
+      this.pendingSupportClosureId = selectedConversation?.id || '';
+      this.render();
+    });
+    section.querySelector('[data-support-action="close-dismiss"]')?.addEventListener('click', () => {
+      this.pendingSupportClosureId = '';
+      this.render();
+    });
+    section.querySelector('[data-support-action="close-confirm"]')?.addEventListener('click', () => this.closeSupportConversation(selectedConversation?.id));
     return section;
   }
 
@@ -3362,7 +3371,16 @@ export class GrowGardenModule {
           'data-support-action': 'close',
           disabled: closed ? 'disabled' : null
         }, 'Fechar conversa')
-      ])
+      ]),
+      this.pendingSupportClosureId === conversation.id
+        ? createElement('div', { class: 'admin-support-close-confirm', role: 'alert' }, [
+          createElement('strong', {}, 'Tem certeza que deseja fechar e remover esta conversa da lista?'),
+          createElement('div', {}, [
+            createElement('button', { type: 'button', class: 'button-secondary', 'data-support-action': 'close-dismiss' }, 'Cancelar'),
+            createElement('button', { type: 'button', class: 'button-primary', 'data-support-action': 'close-confirm' }, 'Sim, fechar conversa')
+          ])
+        ])
+        : null
     ]);
   }
 
@@ -3406,7 +3424,7 @@ export class GrowGardenModule {
 
   replyToSupportConversation(event) {
     event.preventDefault();
-    const conversationId = this.selectedSupportConversationId || this.supportService.listAdminConversations()[0]?.id;
+    const conversationId = this.selectedSupportConversationId || this.supportService.listActiveAdminConversations()[0]?.id;
     if (!conversationId) return;
     const data = new FormData(event.currentTarget);
     try {
@@ -3429,7 +3447,9 @@ export class GrowGardenModule {
   closeSupportConversation(conversationId) {
     if (!conversationId) return;
     this.supportService.closeConversation(conversationId);
-    this.supportAdminMessage = 'Conversa fechada.';
+    this.pendingSupportClosureId = '';
+    this.selectedSupportConversationId = this.supportService.listActiveAdminConversations()[0]?.id || null;
+    this.supportAdminMessage = 'Conversa fechada e removida da lista.';
     this.render();
   }
 

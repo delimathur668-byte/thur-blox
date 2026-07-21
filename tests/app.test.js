@@ -45,7 +45,7 @@ import { AuthService } from '../src/services/AuthService.js';
 import { AdminAuthService } from '../src/services/AdminAuthService.js';
 import { InventoryOverrideService } from '../src/services/InventoryOverrideService.js';
 import { CouponAdminService } from '../src/services/CouponAdminService.js';
-import { getSupportBotReply, SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
+import { getSupportBotReply, isActiveSupportConversation, SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
 import { ReviewService, REVIEW_STORAGE_KEY } from '../src/services/ReviewService.js';
 import { OrderStore } from '../server/store/OrderStore.js';
 import { SandboxPixPaymentGateway } from '../server/store/PaymentGateway.js';
@@ -969,11 +969,17 @@ test('closed support conversation can be cleared without deleting admin history'
   service.clearActiveConversation();
   assert.equal(service.getActiveConversation(), null);
   assert.equal(service.getConversation(oldConversation.id).status, 'closed');
+  assert.equal(service.getConversation(oldConversation.id).archived, true);
 
   const newConversation = service.createConversation({ customerName: 'Cliente novo' });
   service.sendMessage(newConversation.id, { senderType: 'customer', body: 'Novo atendimento.' });
   const adminConversations = service.listAdminConversations();
   assert.equal(adminConversations.length, 2);
+  assert.deepEqual(service.listActiveAdminConversations().map((conversation) => conversation.id), [newConversation.id]);
+  assert.equal(service.getAdminUnreadCount(), 1);
+  assert.equal(isActiveSupportConversation({ status: 'closed' }), false);
+  assert.equal(isActiveSupportConversation({ status: 'responded', archived: true }), false);
+  assert.equal(isActiveSupportConversation({ status: 'new', deleted: true }), false);
   assert.notEqual(newConversation.id, oldConversation.id);
   assert.equal(service.getConversation(oldConversation.id).status, 'closed');
   assert.equal(service.getConversation(newConversation.id).status, 'new');

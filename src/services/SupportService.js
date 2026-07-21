@@ -32,6 +32,10 @@ export const getSupportBotReply = (message) => {
 
 const nowIso = () => new Date().toISOString();
 
+export const isActiveSupportConversation = (conversation = {}) => conversation.status !== 'closed'
+  && conversation.archived !== true
+  && conversation.deleted !== true;
+
 const createId = (prefix) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 
 const normalizeText = (value, { required = false, max = SUPPORT_MESSAGE_MAX_LENGTH, label = 'Texto' } = {}) => {
@@ -147,15 +151,18 @@ export class SupportService {
   }
 
   closeConversation(conversationId) {
-    return this.updateStatus(conversationId, 'closed');
+    return this.updateStatus(conversationId, 'closed', {
+      archived: true,
+      archivedAt: this.now()
+    });
   }
 
-  updateStatus(conversationId, status) {
+  updateStatus(conversationId, status, changes = {}) {
     if (!SUPPORT_STATUS_LABELS[status]) throw new Error('Status invalido.');
     const state = this.loadState();
     const conversation = state.conversations.find((item) => item.id === conversationId);
     if (!conversation) throw new Error('Conversa nao encontrada.');
-    conversation.status = status;
+    Object.assign(conversation, changes, { status });
     conversation.updatedAt = this.now();
     this.saveState(state);
     return conversation;
@@ -190,6 +197,10 @@ export class SupportService {
     this.storage.setItem(SUPPORT_ACTIVE_CONVERSATION_KEY, conversationId);
   }
 
+  listActiveAdminConversations() {
+    return this.listAdminConversations().filter(isActiveSupportConversation);
+  }
+
   clearActiveConversation() {
     if (!this.storage) return;
     this.storage.removeItem(SUPPORT_ACTIVE_CONVERSATION_KEY);
@@ -201,7 +212,7 @@ export class SupportService {
   }
 
   getAdminUnreadCount() {
-    return this.listAdminConversations().reduce((total, conversation) => total + Number(conversation.unreadByAdmin || 0), 0);
+    return this.listActiveAdminConversations().reduce((total, conversation) => total + Number(conversation.unreadByAdmin || 0), 0);
   }
 
   buildMessage({ conversationId, senderType, senderName, body, createdAt }) {
