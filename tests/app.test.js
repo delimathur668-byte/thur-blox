@@ -61,6 +61,7 @@ const homePortalCode = readFileSync(resolve(projectRoot, 'src', 'components', 'H
 const brainrotMaintenanceScreenCode = readFileSync(resolve(projectRoot, 'src', 'components', 'BrainrotMaintenanceScreen.js'), 'utf8');
 const brainrotMaintenanceConfigCode = readFileSync(resolve(projectRoot, 'src', 'config', 'brainrot-maintenance-config.js'), 'utf8');
 const growGardenModuleCode = readFileSync(resolve(projectRoot, 'src', 'components', 'GrowGardenModule.js'), 'utf8');
+const pixQrCodeServiceCode = readFileSync(resolve(projectRoot, 'src', 'services', 'PixQrCodeService.js'), 'utf8');
 const orderStoreCode = readFileSync(resolve(projectRoot, 'server', 'store', 'OrderStore.js'), 'utf8');
 const storeConfigCode = readFileSync(resolve(projectRoot, 'src', 'config', 'store-commerce-config.js'), 'utf8');
 const paymentGatewayCode = readFileSync(resolve(projectRoot, 'server', 'store', 'PaymentGateway.js'), 'utf8');
@@ -575,9 +576,15 @@ test('manual Pix configuration and order creation stay explicit and pending', ()
   assert.equal(STORE_COMMERCE_CONFIG.pix.mode, 'manual');
   assert.equal(STORE_COMMERCE_CONFIG.pix.key, 'delimathur668@gmail.com');
   assert.equal(STORE_COMMERCE_CONFIG.pix.keyType, 'email');
-  assert.equal(STORE_COMMERCE_CONFIG.pix.receiverName, '');
-  assert.equal(STORE_COMMERCE_CONFIG.pix.receiverCity, '');
+  assert.equal(STORE_COMMERCE_CONFIG.pix.receiverName, 'THUR BLOX');
+  assert.equal(STORE_COMMERCE_CONFIG.pix.receiverCity, 'SAO PAULO');
   assert.ok(growGardenModuleCode.includes('Nao foi possivel gerar a cobranca Pix.'), 'UI must show gateway failure without exposing the key');
+  assert.ok(growGardenModuleCode.includes('Escaneie o QR Code Pix'), 'checkout must render a QR Code panel when Pix payload exists');
+  assert.ok(growGardenModuleCode.includes('renderPixQrCode(qrContainer, order.pixPayload)'), 'checkout must generate QR from the Pix copy-paste payload');
+  assert.equal(growGardenModuleCode.includes('O QR Code fica disponivel quando houver backend Pix ativo'), false);
+  assert.ok(pixQrCodeServiceCode.includes("startsWith(PIX_PAYLOAD_PREFIX)"), 'QR service must minimally validate Pix payload format');
+  assert.ok(pixQrCodeServiceCode.includes('validatePixPayloadCrc'), 'QR service must validate payload CRC');
+  assert.ok(htmlContent.includes('assets/vendor/qrcode-browser.js'), 'static app must load browser QR bundle before app module');
   assert.equal(growGardenModuleCode.includes('Chave Pix'), false);
   assert.equal(growGardenModuleCode.includes('Copiar chave Pix'), false);
   assert.equal(growGardenModuleCode.includes('Chave Pix copiada.'), false);
@@ -618,9 +625,12 @@ test('manual Pix configuration and order creation stay explicit and pending', ()
   assert.equal(result.order.paymentStatus, 'pending');
   assert.equal(result.order.orderStatus, 'awaiting_payment');
   assert.equal(result.order.customerReportedPayment, false);
-  assert.equal(result.order.pixPayload, null);
-  assert.equal(result.order.pixPayloadStatus, 'configuration_required');
-  assert.equal(result.order.pixPayloadError, 'PIX_RECEIVER_NAME e PIX_RECEIVER_CITY sao necessarios para gerar BR Code Pix valido.');
+  assert.equal(typeof result.order.pixPayload, 'string');
+  assert.equal(result.order.pixPayload.startsWith('000201'), true);
+  assert.equal(result.order.pixPayload.includes('540520.00'), true);
+  assert.equal(validatePixPayloadCrc(result.order.pixPayload), true);
+  assert.equal(result.order.pixPayloadStatus, 'ready');
+  assert.equal(result.order.pixPayloadError, null);
   assert.equal(createOrderCode({ now: new Date('2026-07-01T12:00:00.000Z'), random: () => 0 }), 'THUR-W00000');
 });
 

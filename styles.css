@@ -2234,20 +2234,55 @@ button {
 }
 
 .pix-payment-card .pix-qr-panel {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
   padding: 18px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.045);
+  text-align: center;
+}
+
+.pix-payment-card .pix-qr-panel strong {
+  color: var(--garden-text);
+  font-size: 1.05rem;
+}
+
+.pix-payment-card .pix-qr-panel p {
+  max-width: 32rem;
+  margin: 0;
+  color: var(--garden-muted);
+  line-height: 1.45;
+}
+
+.pix-qr-render-box {
+  display: grid;
+  place-items: center;
+  width: min(280px, 100%);
+  min-height: min(280px, calc(100vw - 64px));
+  padding: 12px;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #111827;
+  font-weight: 900;
+  box-sizing: border-box;
+}
+
+.pix-qr-render-box.error {
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.32);
 }
 
 .pix-payment-card .pix-qr-code,
 .pix-payment-card .pix-qr-image {
-  width: min(280px, 100%);
+  width: min(260px, 100%);
   aspect-ratio: 1;
   height: auto;
   object-fit: contain;
   display: block;
   margin: 0 auto;
-  padding: 12px;
+  padding: 0;
   border-radius: 16px;
   background: #fff;
   box-sizing: border-box;

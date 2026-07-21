@@ -13,6 +13,7 @@ import { CartService } from '../services/grow-garden-2/CartService.js';
 import { STORE_COMMERCE_CONFIG } from '../config/store-commerce-config.js';
 import { SupportService, SUPPORT_STATUS_LABELS } from '../services/SupportService.js';
 import { AuthService } from '../services/AuthService.js';
+import { renderPixQrCode } from '../services/PixQrCodeService.js';
 import {
   InventoryOverrideService,
   STOCK_STATUS,
@@ -1952,7 +1953,6 @@ export class GrowGardenModule {
 
   buildPixPaymentPanel(seed, order, state) {
     const hasPixPayload = Boolean(order.pixPayload);
-    const hasPixQr = Boolean(order.pixQrImageUrl);
     const orderItems = Array.isArray(order.items) && order.items.length > 0
       ? order.items
       : [{
@@ -1962,7 +1962,6 @@ export class GrowGardenModule {
         unitPriceInCents: order.unitPriceInCents,
         subtotalInCents: order.subtotalInCents
       }];
-    const qrFallbackMessage = 'Nao foi possivel exibir o QR Code desta cobranca. Tente gerar novamente.';
     const fixedPixAmount = Number.isInteger(order.pixChargeAmountInCents) ? order.pixChargeAmountInCents : order.totalInCents;
     const pixValidity = order.pixExpiresAt
       ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(order.pixExpiresAt))
@@ -1994,23 +1993,16 @@ export class GrowGardenModule {
         ]),
         null,
         createElement('div', { class: 'pix-primary-column' }, [
-          hasPixQr
-            ? createElement('div', { class: 'pix-qr-panel' }, [
-              createElement('img', {
-                class: 'pix-qr-image pix-qr-code',
-                src: order.pixQrImageUrl,
-                alt: `QR Code Pix do pedido ${order.orderCode}`,
-                loading: 'lazy',
-                'data-pix-qr': 'true'
-              }),
-              createElement('p', { class: 'pix-qr-fallback', hidden: true }, qrFallbackMessage)
+          hasPixPayload
+            ? createElement('div', { class: 'pix-qr-panel pix-qr-generated-panel' }, [
+              createElement('div', {
+                class: 'pix-qr-render-box',
+                'data-pix-qr-payload': 'true'
+              }, 'Gerando QR Code Pix...'),
+              createElement('strong', {}, 'Escaneie o QR Code Pix'),
+              createElement('p', {}, 'Abra o app do seu banco, escaneie o QR Code ou copie o codigo Pix abaixo.')
             ])
-            : hasPixPayload
-              ? createElement('div', { class: 'pix-brcode-box pending' }, [
-                createElement('strong', {}, 'Pix copia e cola gerado.'),
-                createElement('p', {}, 'Use o codigo abaixo para pagar. O QR Code fica disponivel quando houver backend Pix ativo.')
-              ])
-              : createElement('div', { class: 'pix-brcode-box pending' }, [
+            : createElement('div', { class: 'pix-brcode-box pending' }, [
               createElement('strong', {}, 'Nao foi possivel gerar a cobranca Pix.'),
               createElement('p', {}, order.pixPayloadError || state.message || 'Tente novamente. Nenhum pagamento manual sera exibido como fallback.'),
               createElement('button', {
@@ -2058,10 +2050,13 @@ export class GrowGardenModule {
       ])
     ]);
 
-    panel.querySelector('[data-copy="pix-payload"]')?.addEventListener('click', () => this.copyPaymentText(seed.slug, order.pixPayload, 'Codigo Pix copiado.'));
-    panel.querySelector('[data-pix-qr="true"]')?.addEventListener('error', () => {
-      panel.querySelector('.pix-qr-fallback')?.removeAttribute('hidden');
-    });
+    panel.querySelector('[data-copy="pix-payload"]')?.addEventListener('click', () => this.copyPaymentText(seed.slug, order.pixPayload, 'Codigo Pix copiado!'));
+    const qrContainer = panel.querySelector('[data-pix-qr-payload="true"]');
+    if (qrContainer && hasPixPayload) {
+      renderPixQrCode(qrContainer, order.pixPayload).then((result) => {
+        if (!result?.ok) console.warn('PIX_QR_RENDER_ERROR', { reason: result?.reason, orderCode: order.orderCode });
+      });
+    }
     panel.querySelector('[data-action="retry-pix"]')?.addEventListener('click', () => this.createPixCharge(order, state));
     panel.querySelector('[data-action="report-payment"]')?.addEventListener('click', async () => {
       const response = await fetch(`/api/orders/${encodeURIComponent(order.orderCode)}/report-payment`, {

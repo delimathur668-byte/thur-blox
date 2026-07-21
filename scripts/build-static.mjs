@@ -1,6 +1,7 @@
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import './build-qrcode-browser.mjs';
 
 const root = process.cwd();
 const dist = join(root, 'dist');
