@@ -113,23 +113,25 @@ export class SupportChatWidget {
         ...messages.map((message) => this.buildMessage(message)),
         createElement('span', { class: 'support-messages-end', 'aria-hidden': 'true' })
       ]),
-      createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
-      closed
-        ? createElement('div', { class: 'support-closed-state' }, [
-          createElement('p', { class: 'support-closed-note' }, 'Esta conversa foi fechada pelo suporte.'),
-          createElement('button', { type: 'button', class: 'support-new-conversation', 'data-action': 'new-support-conversation' }, 'Iniciar nova conversa'),
-          createElement('small', {}, 'Você pode abrir um novo atendimento quando precisar.')
-        ])
-        : createElement('form', { class: 'support-compose', novalidate: 'novalidate' }, [
-          createElement('textarea', {
-            name: 'message',
-            maxlength: String(SUPPORT_MESSAGE_MAX_LENGTH),
-            required: 'required',
-            placeholder: 'Escreva sua mensagem...'
-          }),
-          createElement('button', { type: 'submit', class: 'support-send-button', disabled: 'disabled' }, 'Enviar mensagem')
-        ]),
-      createElement('small', { class: 'support-powered' }, 'Suporte Thur Blox')
+      createElement('div', { class: 'support-conversation-bottom' }, [
+        createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
+        closed
+          ? createElement('div', { class: 'support-closed-state' }, [
+            createElement('p', { class: 'support-closed-note' }, 'Esta conversa foi fechada pelo suporte.'),
+            createElement('button', { type: 'button', class: 'support-new-conversation', 'data-action': 'new-support-conversation' }, 'Iniciar nova conversa'),
+            createElement('small', {}, 'Você pode abrir um novo atendimento quando precisar.')
+          ])
+          : createElement('form', { class: 'support-compose', novalidate: 'novalidate' }, [
+            createElement('textarea', {
+              name: 'message',
+              maxlength: String(SUPPORT_MESSAGE_MAX_LENGTH),
+              required: 'required',
+              placeholder: 'Escreva sua mensagem...'
+            }),
+            createElement('button', { type: 'submit', class: 'support-send-button', disabled: 'disabled' }, 'Enviar mensagem')
+          ]),
+        createElement('small', { class: 'support-powered' }, 'Suporte Thur Blox')
+      ])
     ]);
     const form = area.querySelector('form');
     form?.addEventListener('submit', (event) => this.sendCustomerMessage(event, conversation.id, conversation.customerName));
@@ -279,7 +281,8 @@ export class SupportChatWidget {
     if (oldElement?.parentNode) oldElement.replaceWith(nextElement);
     if (this.open) {
       window.setTimeout(() => {
-        nextElement.querySelector('.support-messages-end')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        const messageList = nextElement.querySelector('.support-message-list');
+        if (messageList) messageList.scrollTop = messageList.scrollHeight;
       }, 0);
     }
   }

@@ -7595,18 +7595,33 @@ body {
 
 .support-conversation {
   height: 100%;
-  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
 }
 
 .support-message-list {
-  min-height: 180px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-right: 4px;
+  padding: 16px 12px 12px;
+}
+
+.support-conversation-bottom {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 0;
+  border-top: 1px solid rgba(255, 208, 0, .18);
+  background: #111212;
 }
 
 .support-messages-end {
@@ -7652,6 +7667,7 @@ body {
   font-weight: 750;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .support-message-row.customer .support-message-bubble {
@@ -9930,16 +9946,21 @@ body {
   }
 
   .support-conversation {
-    gap: 8px;
-    padding: 10px 10px 0;
+    padding: 0;
   }
 
   .support-message-list {
-    min-height: 120px;
+    padding: 10px;
   }
 
-  .support-warning {
+  .support-conversation-bottom {
+    gap: 6px;
+    padding: 8px 10px 0;
+  }
+
+  .support-conversation-bottom .support-warning {
     padding: 7px 9px;
+    font-size: .76rem;
   }
 
   .support-compose {
