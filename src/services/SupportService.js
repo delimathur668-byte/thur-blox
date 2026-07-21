@@ -190,6 +190,11 @@ export class SupportService {
     this.storage.setItem(SUPPORT_ACTIVE_CONVERSATION_KEY, conversationId);
   }
 
+  clearActiveConversation() {
+    if (!this.storage) return;
+    this.storage.removeItem(SUPPORT_ACTIVE_CONVERSATION_KEY);
+  }
+
   getCustomerUnreadCount() {
     const conversation = this.getActiveConversation();
     return Number(conversation?.unreadByCustomer || 0);

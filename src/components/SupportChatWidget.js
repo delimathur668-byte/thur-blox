@@ -111,7 +111,11 @@ export class SupportChatWidget {
       createElement('div', { class: 'support-message-list' }, messages.map((message) => this.buildMessage(message))),
       createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
       closed
-        ? createElement('p', { class: 'support-closed-note' }, 'Esta conversa foi fechada pelo suporte.')
+        ? createElement('div', { class: 'support-closed-state' }, [
+          createElement('p', { class: 'support-closed-note' }, 'Esta conversa foi fechada pelo suporte.'),
+          createElement('button', { type: 'button', class: 'support-new-conversation', 'data-action': 'new-support-conversation' }, 'Iniciar nova conversa'),
+          createElement('small', {}, 'Você pode abrir um novo atendimento quando precisar.')
+        ])
         : createElement('form', { class: 'support-compose', novalidate: 'novalidate' }, [
           createElement('textarea', {
             name: 'message',
@@ -126,6 +130,7 @@ export class SupportChatWidget {
     const form = area.querySelector('form');
     form?.addEventListener('submit', (event) => this.sendCustomerMessage(event, conversation.id, conversation.customerName));
     form?.addEventListener('input', () => this.updateSubmitState(form));
+    area.querySelector('[data-action="new-support-conversation"]')?.addEventListener('click', () => this.startNewConversation());
     return area;
   }
 
@@ -244,6 +249,13 @@ export class SupportChatWidget {
     const nameFilled = form.classList.contains('support-compose')
       || Boolean(form.elements.customerName?.value.trim());
     button.disabled = !(nameFilled && messageFilled);
+  }
+
+  startNewConversation() {
+    this.service.clearActiveConversation();
+    this.error = '';
+    this.status = '';
+    this.replace();
   }
 
   replace() {

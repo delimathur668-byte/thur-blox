@@ -959,6 +959,27 @@ test('support bot recognizes keywords and never replies to admin messages', () =
   assert.equal(messages.at(-1).senderType, 'admin');
 });
 
+test('closed support conversation can be cleared without deleting admin history', () => {
+  const storage = createMemoryStorage();
+  const service = new SupportService({ storage, now: () => '2026-07-21T12:00:00.000Z' });
+  const oldConversation = service.createConversation({ customerName: 'Cliente antigo' });
+  service.sendMessage(oldConversation.id, { senderType: 'customer', body: 'Primeiro atendimento.' });
+  service.closeConversation(oldConversation.id);
+
+  service.clearActiveConversation();
+  assert.equal(service.getActiveConversation(), null);
+  assert.equal(service.getConversation(oldConversation.id).status, 'closed');
+
+  const newConversation = service.createConversation({ customerName: 'Cliente novo' });
+  service.sendMessage(newConversation.id, { senderType: 'customer', body: 'Novo atendimento.' });
+  const adminConversations = service.listAdminConversations();
+  assert.equal(adminConversations.length, 2);
+  assert.notEqual(newConversation.id, oldConversation.id);
+  assert.equal(service.getConversation(oldConversation.id).status, 'closed');
+  assert.equal(service.getConversation(newConversation.id).status, 'new');
+  assert.equal(service.getConversation(oldConversation.id).messages.some((message) => message.body === 'Novo atendimento.'), false);
+});
+
 test('ReviewService saves one pending review per paid order and remembers the thank-you screen', () => {
   const storage = createMemoryStorage();
   const service = new ReviewService({ storage, now: () => '2026-07-21T12:00:00.000Z' });
