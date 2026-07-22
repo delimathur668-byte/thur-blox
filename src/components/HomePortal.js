@@ -390,7 +390,7 @@ export class HomePortal {
 
   buildLoginModal() {
     const overlay = createElement('div', { class: 'access-modal-overlay auth-login-overlay' }, [
-      createElement('form', { class: 'access-modal panel auth-login-modal' }, [
+      createElement('form', { class: 'access-modal panel auth-login-modal auth-modal auth-modal-content' }, [
         createElement('h2', {}, this.loginMode === 'register' ? 'Criar conta' : 'Entrar na sua conta'),
         createElement('p', {}, 'Acesse sua conta para acompanhar pedidos e falar com o suporte.'),
         createElement('div', { class: 'auth-mode-tabs' }, [
@@ -405,7 +405,7 @@ export class HomePortal {
         this.loginMode === 'login' && this.loginState.message ? createElement('p', { class: 'checkout-message success' }, this.loginState.message) : null,
         createElement('button', {
           type: 'submit',
-          class: 'button-primary',
+          class: 'button-primary auth-submit-button',
           disabled: this.loginState.loading || this.registerState.loading ? 'disabled' : null
         }, this.loginMode === 'register'
           ? (this.registerState.loading ? 'Criando...' : 'Criar conta')

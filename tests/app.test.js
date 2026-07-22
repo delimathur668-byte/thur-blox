@@ -1876,6 +1876,15 @@ test('LocalOrderRepository persists manual local orders for checkout and admin',
   assert.equal(repository.update('THUR-LOCAL1', { orderStatus: 'paid' }).orderStatus, 'paid');
 });
 
+test('create account modal remains scrollable and keeps its submit button visible', () => {
+  assert.match(homePortalCode, /auth-login-modal auth-modal auth-modal-content/);
+  assert.match(homePortalCode, /button-primary auth-submit-button/);
+  assert.match(homePortalCode, /Criar conta/);
+  assert.match(styles, /\.auth-login-modal\s*\{[^}]*max-height:\s*calc\(100vh - 32px\);[^}]*overflow-y:\s*auto;/s);
+  assert.match(styles, /\.auth-login-modal \.auth-submit-button\s*\{[^}]*min-height:\s*44px;/s);
+  assert.match(styles, /\.auth-form-fields input\s*\{[^}]*width:\s*100%;[^}]*box-sizing:\s*border-box;/s);
+});
+
 test('cancelled and archived orders stay persisted but are hidden from the active admin list', () => {
   const memory = new Map();
   const storage = {
