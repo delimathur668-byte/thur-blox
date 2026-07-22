@@ -7948,6 +7948,18 @@ body {
   padding: 0;
 }
 
+.support-starter {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: 12px;
+}
+
 .support-message-list {
   flex: 1 1 auto;
   min-height: 0;
@@ -7969,6 +7981,8 @@ body {
   padding: 10px 12px 0;
   border-top: 1px solid rgba(255, 208, 0, .18);
   background: #111212;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .support-messages-end {
@@ -8121,7 +8135,7 @@ body {
 .support-product-actions .support-product-agent { grid-column: 1 / -1; }
 .support-product-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .support-go-cart { min-height: 0; padding: 2px 5px; color: #d8ff00; }
-.support-quick-actions { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 5px; scrollbar-width: thin; }
+.support-quick-actions { display: flex; flex-wrap: wrap; gap: 6px; max-width: 100%; overflow-x: hidden; padding: 2px 0 5px; }
 .support-quick-actions button { flex: 0 0 auto; min-height: 32px; padding: 6px 10px; border: 1px solid rgba(216,255,0,.28); border-radius: 999px; background: rgba(216,255,0,.07); color: #fff; font: inherit; font-size: .72rem; font-weight: 850; cursor: pointer; white-space: nowrap; }
 .support-quick-actions button:hover { border-color: #d8ff00; color: #d8ff00; }
 .support-customer-identity { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-bottom: 1px solid rgba(216,255,0,.14); background: #151717; }
@@ -8237,10 +8251,19 @@ body {
 }
 
 .support-start-form {
+  position: static;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
   padding-bottom: 12px;
+  overflow: visible;
+}
+
+.customer-form-grid .full {
+  grid-column: 1 / -1;
 }
 
 .support-field {
@@ -8262,6 +8285,9 @@ body {
 .support-compose textarea,
 .admin-support-reply textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid rgba(255, 208, 0, .54);
   border-radius: 8px;
   background: #303030;
@@ -10456,8 +10482,13 @@ body {
     height: 58px;
   }
 
-  .support-start-form {
+  .support-start-form,
+  .customer-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .customer-form-grid .full {
+    grid-column: auto;
   }
 
   .support-panel-header {

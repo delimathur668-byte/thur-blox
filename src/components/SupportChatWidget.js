@@ -95,11 +95,11 @@ export class SupportChatWidget {
       this.buildSupportBubble(WELCOME_MESSAGE),
       this.buildQuickActions({ starter: true }),
       createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
-      createElement('form', { class: 'support-start-form', novalidate: 'novalidate' }, [
+      createElement('form', { class: 'support-start-form customer-form-grid', novalidate: 'novalidate' }, [
         this.buildField('Seu nome', 'customerName', 'text', true),
         this.buildField('Email (opcional)', 'customerEmail', 'email', false),
-        this.buildField('Nick Roblox (opcional)', 'robloxUsername', 'text', false),
-        createElement('label', { class: 'support-field wide' }, [
+        this.buildField('Nick Roblox (opcional)', 'robloxUsername', 'text', false, '', 'full'),
+        createElement('label', { class: 'support-field full' }, [
           createElement('span', {}, 'Mensagem'),
           createElement('textarea', {
             name: 'message',
@@ -108,7 +108,7 @@ export class SupportChatWidget {
             placeholder: 'Escreva sua mensagem...'
           })
         ]),
-        createElement('button', { type: 'submit', class: 'support-send-wide', disabled: 'disabled' }, [
+        createElement('button', { type: 'submit', class: 'support-send-wide full', disabled: 'disabled' }, [
           createElement('span', {}, 'Enviar mensagem'),
           createElement('span', { class: 'support-send-arrow', 'aria-hidden': 'true' }, '')
         ])
@@ -197,8 +197,8 @@ export class SupportChatWidget {
     return form;
   }
 
-  buildField(label, name, type, required, value = '') {
-    return createElement('label', { class: 'support-field' }, [
+  buildField(label, name, type, required, value = '', extraClass = '') {
+    return createElement('label', { class: `support-field${extraClass ? ` ${extraClass}` : ''}` }, [
       createElement('span', {}, label),
       createElement('input', {
         name,
