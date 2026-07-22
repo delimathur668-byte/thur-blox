@@ -47,6 +47,7 @@ import { InventoryOverrideService } from '../src/services/InventoryOverrideServi
 import { CouponAdminService } from '../src/services/CouponAdminService.js';
 import { getSupportBotReply, isActiveSupportConversation, SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
 import { findChatProduct, getChatProductRoute, hasChatPurchaseIntent } from '../src/services/ChatProductSearchService.js';
+import { calculateVipStatus, calculateVipDiscountInCents, getVipStatusForCustomer, isVipEligibleOrder, selectBestDiscount } from '../src/services/VipLoyaltyService.js';
 import { ReviewService, REVIEW_STORAGE_KEY } from '../src/services/ReviewService.js';
 import { OrderStore } from '../server/store/OrderStore.js';
 import { SandboxPixPaymentGateway } from '../server/store/PaymentGateway.js';
@@ -930,6 +931,52 @@ test('support quick order recognizes purchase intent and searches both store gam
   assert.equal(findChatProduct('quero produto-que-nao-existe', growGardenStoreProductsData.products), null);
   assert.equal(getChatProductRoute(kitsune), '/category/blox-fruits?produto=kitsune-fruit');
   assert.equal(getChatProductRoute(firefly, { cart: true }), '/category/grow-a-garden-2?tab=carrinho');
+});
+
+test('VIP loyalty promotes customers by paid value or eligible order count', () => {
+  const order = (totalInCents, status = 'confirmed', extra = {}) => ({ totalInCents, paymentStatus: status, customerEmail: 'vip@example.com', ...extra });
+  assert.equal(calculateVipStatus([]).level.name, 'Bronze');
+  assert.equal(calculateVipStatus([order(3000)]).level.name, 'Prata');
+  assert.equal(calculateVipStatus([order(8000)]).level.name, 'Ouro');
+  assert.equal(calculateVipStatus([order(15000)]).level.name, 'Diamante');
+  assert.equal(calculateVipStatus([order(20000, 'cancelled')]).level.name, 'Bronze');
+  assert.equal(isVipEligibleOrder(order(1000, 'pending')), false);
+  assert.equal(isVipEligibleOrder(order(1000, 'pending', { deliveryStatus: 'delivering' })), true);
+
+  const byCount = Array.from({ length: 5 }, () => order(100));
+  assert.equal(calculateVipStatus(byCount).level.name, 'Ouro');
+  assert.equal(getVipStatusForCustomer([...byCount, order(15000, 'confirmed', { customerEmail: 'other@example.com' })], { email: 'vip@example.com' }).level.name, 'Ouro');
+});
+
+test('VIP checkout chooses the larger discount without making totals negative', () => {
+  assert.equal(calculateVipDiscountInCents(10000, 5), 500);
+  assert.deepEqual(selectBestDiscount({ subtotalInCents: 10000, couponDiscountInCents: 300, vipDiscountPercent: 5 }), {
+    source: 'vip', discountInCents: 500, vipDiscountInCents: 500, couponDiscountInCents: 300
+  });
+  assert.equal(selectBestDiscount({ subtotalInCents: 10000, couponDiscountInCents: 700, vipDiscountPercent: 5 }).source, 'coupon');
+  assert.equal(selectBestDiscount({ subtotalInCents: 100, couponDiscountInCents: 9999, vipDiscountPercent: 8 }).discountInCents, 100);
+  assert.equal(growGardenModuleCode.includes('vip-checkout-message'), true);
+  assert.equal(growGardenModuleCode.includes('buildVipBadge'), true);
+  assert.equal(homePortalCode.includes('buildVipCard'), true);
+
+  const service = new StoreCommerceService();
+  const product = growGardenStoreProductsData.products.find((item) => item.slug === 'firefly');
+  const result = service.buildManualPixOrder({
+    seed: { ...product, commerce: service.normalizeStoreProduct(product) },
+    quantity: 1,
+    customerName: 'Cliente VIP',
+    customerUserId: 'vip-user',
+    robloxUsername: 'ClienteVip',
+    email: 'vip@example.com',
+    vipDiscountPercent: 5,
+    vipLevel: 'Ouro',
+    termsAccepted: true
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.order.vipLevel, 'Ouro');
+  assert.equal(result.order.discountSource, 'vip');
+  assert.equal(result.order.discountInCents, 39);
+  assert.equal(result.order.totalInCents, 751);
 });
 
 test('Blox Fruits category exposes five Pix products with isolated storefront inventory', () => {

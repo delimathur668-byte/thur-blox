@@ -1,4 +1,5 @@
 import { STORE_COMMERCE_CONFIG } from '../../config/store-commerce-config.js';
+import { selectBestDiscount } from '../VipLoyaltyService.js';
 import { CouponAdminService } from '../CouponAdminService.js';
 
 const DATA_URL = '/src/data/grow-garden-2/store-products.json';
@@ -507,6 +508,8 @@ export class StoreCommerceService {
     robloxDisplayName,
     email,
     couponCode,
+    vipDiscountPercent = 0,
+    vipLevel = 'Bronze',
     coupons = [],
     termsAccepted,
     now = new Date()
@@ -554,7 +557,8 @@ export class StoreCommerceService {
     });
     if (!coupon.ok) return { ok: false, code: 'INVALID_COUPON', errors: [coupon.reason || 'Cupom invalido ou expirado.'] };
 
-    const discountInCents = coupon.discountInCents;
+    const bestDiscount = selectBestDiscount({ subtotalInCents, couponDiscountInCents: coupon.discountInCents, vipDiscountPercent });
+    const discountInCents = bestDiscount.discountInCents;
     const totalInCents = Math.max(0, subtotalInCents - discountInCents);
     const pixConfig = this.config.pix || {};
     const orderCode = createOrderCode({ now });
@@ -581,6 +585,9 @@ export class StoreCommerceService {
         unitPriceInCents: firstItem.unitPriceInCents,
         subtotalInCents,
         couponCode: coupon.couponCode,
+        discountSource: bestDiscount.source,
+        vipLevel: String(vipLevel || 'Bronze'),
+        vipDiscountPercent: [0, 3, 5, 8].includes(Number(vipDiscountPercent)) ? Number(vipDiscountPercent) : 0,
         discountInCents,
         totalInCents,
         customerName: String(customerName).trim(),
@@ -616,6 +623,8 @@ export class StoreCommerceService {
     robloxDisplayName,
     email,
     couponCode,
+    vipDiscountPercent = 0,
+    vipLevel = 'Bronze',
     coupons = [],
     termsAccepted,
     now = new Date()
@@ -628,6 +637,8 @@ export class StoreCommerceService {
       robloxDisplayName,
       email,
       couponCode,
+      vipDiscountPercent,
+      vipLevel,
       coupons,
       termsAccepted,
       now

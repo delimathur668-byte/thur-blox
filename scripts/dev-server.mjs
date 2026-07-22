@@ -8,6 +8,7 @@ import { SandboxPixPaymentGateway } from '../server/store/PaymentGateway.js';
 import { PixPayloadService, PIX_ERROR_MESSAGES } from '../server/store/PixPayloadService.js';
 import { ProductStockStore } from '../server/store/ProductStockStore.js';
 import { StoreCommerceService, validatePixPayloadCrc } from '../src/services/grow-garden-2/StoreCommerceService.js';
+import { getVipStatusForCustomer } from '../src/services/VipLoyaltyService.js';
 
 const root = process.cwd();
 const preferredPort = Number(process.env.PORT || 5173);
@@ -412,6 +413,11 @@ const handleOrderApi = async ({ request, response, url }) => {
       sendJson(response, 404, { code: 'PRODUCT_NOT_FOUND', error: 'Produto nao encontrado.' });
       return true;
     }
+    const customerVip = getVipStatusForCustomer(orderStore.listAll(), {
+      userId: body.customerUserId || body.userId,
+      email: body.email,
+      name: body.customerName
+    });
     const result = storeCommerceService.buildCartPixOrder({
       items,
       customerName: body.customerName,
@@ -420,6 +426,8 @@ const handleOrderApi = async ({ request, response, url }) => {
       robloxDisplayName: body.robloxDisplayName,
       email: body.email,
       couponCode: body.couponCode,
+      vipDiscountPercent: customerVip.level.discountPercent,
+      vipLevel: customerVip.level.name,
       coupons: await storeCommerceService.loadCoupons(),
       termsAccepted
     });

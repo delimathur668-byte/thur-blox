@@ -22,6 +22,7 @@ import {
 } from '../services/InventoryOverrideService.js';
 import { CouponAdminService } from '../services/CouponAdminService.js';
 import { SupportChatWidget } from './SupportChatWidget.js';
+import { calculateVipStatus, getVipStatusForCustomer, selectBestDiscount } from '../services/VipLoyaltyService.js';
 
 const DEFAULT_ORDER_API_URL = '/api/store/orders';
 const ORDER_API_PATH = '/store/orders';
@@ -1253,7 +1254,9 @@ export class GrowGardenModule {
   calculateCartTotals() {
     const lines = this.getCartLines();
     const subtotalInCents = lines.reduce((total, line) => total + line.subtotalInCents, 0);
-    const discountInCents = Math.min(this.cartState.discountInCents || 0, subtotalInCents);
+    const vip = this.getCurrentCustomerVip();
+    const bestDiscount = selectBestDiscount({ subtotalInCents, couponDiscountInCents: this.cartState.discountInCents, vipDiscountPercent: vip.level.discountPercent });
+    const discountInCents = bestDiscount.discountInCents;
     return {
       lines,
       subtotalInCents,
@@ -1261,7 +1264,37 @@ export class GrowGardenModule {
       totalInCents: Math.max(0, subtotalInCents - discountInCents),
       totalQuantity: lines.reduce((total, line) => total + line.quantity, 0),
       stockOk: lines.every((line) => line.stockOk)
+      , vip, discountSource: bestDiscount.source, vipDiscountInCents: bestDiscount.vipDiscountInCents, couponDiscountInCents: bestDiscount.couponDiscountInCents
     };
+  }
+
+  getVipOrders() {
+    const orders = [...this.localOrderRepository.list(), ...this.manualOrders];
+    return [...new Map(orders.map((order) => [order.orderCode || order.id, order])).values()];
+  }
+
+  getCurrentCustomerVip() {
+    const user = this.currentUser || this.authService.getCurrentUser() || {};
+    return getVipStatusForCustomer(this.getVipOrders(), {
+      userId: user.id,
+      email: user.email || this.cartState.email,
+      name: user.name || this.cartState.customerName
+    });
+  }
+
+  getOrderCustomerVip(order) {
+    return getVipStatusForCustomer(this.getVipOrders(), {
+      userId: order.customerUserId,
+      email: order.customerEmail || order.email,
+      name: order.customerName
+    });
+  }
+
+  getSupportCustomerVip(conversation) {
+    return getVipStatusForCustomer(this.getVipOrders(), {
+      email: conversation.customerEmail,
+      name: conversation.customerName
+    });
   }
 
   recalculateCartCoupon() {
@@ -1427,6 +1460,9 @@ export class GrowGardenModule {
           createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'remove-cart-coupon' }, 'Remover')
         ]),
         this.cartState.couponMessage ? createElement('p', { class: `checkout-message ${this.cartState.couponStatus || ''}` }, this.cartState.couponMessage) : null,
+        totals.vip.level.discountPercent > 0 ? createElement('p', { class: 'checkout-message success vip-checkout-message' }, totals.discountSource === 'vip'
+          ? `Desconto VIP ${totals.vip.level.name} aplicado: ${totals.vip.level.discountPercent}%`
+          : `Seu cupom é melhor que o desconto VIP ${totals.vip.level.name} de ${totals.vip.level.discountPercent}%.`) : null,
         createElement('div', { class: 'checkout-total-box' }, [
           createElement('span', {}, ['Quantidade total', createElement('strong', {}, String(totals.totalQuantity))]),
           createElement('span', {}, ['Subtotal', createElement('strong', {}, formatMoney(totals.subtotalInCents, 'BRL'))]),
@@ -1512,6 +1548,8 @@ export class GrowGardenModule {
         robloxUsername: this.cartState.robloxUsername,
         robloxDisplayName: this.cartState.robloxDisplayName,
         couponCode: this.cartState.appliedCouponCode || this.cartState.couponCode || null,
+        vipDiscountPercent: totals.vip.level.discountPercent,
+        vipLevel: totals.vip.level.name,
         termsAccepted: this.cartState.termsAccepted
       });
       this.cartState.order = order;
@@ -1676,6 +1714,9 @@ export class GrowGardenModule {
           }, 'Remover') : null
         ]),
         state.couponMessage ? createElement('p', { class: `checkout-message ${state.couponStatus || ''}` }, state.couponMessage) : null,
+        totals.vip.level.discountPercent > 0 ? createElement('p', { class: 'checkout-message success vip-checkout-message' }, totals.discountSource === 'vip'
+          ? `Desconto VIP ${totals.vip.level.name} aplicado: ${totals.vip.level.discountPercent}%`
+          : `Seu cupom é melhor que o desconto VIP ${totals.vip.level.name} de ${totals.vip.level.discountPercent}%.`) : null,
         createElement('small', { class: 'checkout-coupon-state', 'data-summary': 'coupon-state' }, state.appliedCouponCode ? `Cupom ${state.appliedCouponCode} aplicado.` : 'Nenhum cupom aplicado.'),
         createElement('div', { class: 'checkout-total-box' }, [
           createElement('span', {}, [
@@ -1779,6 +1820,8 @@ export class GrowGardenModule {
         robloxUsername: form.get('robloxUsername'),
         robloxDisplayName: form.get('robloxDisplayName'),
         couponCode: String(form.get('couponCode') || '').trim() || null,
+        vipDiscountPercent: this.getCurrentCustomerVip().level.discountPercent,
+        vipLevel: this.getCurrentCustomerVip().level.name,
         termsAccepted: form.get('termsAccepted') === 'on'
       };
       try {
@@ -2013,6 +2056,8 @@ export class GrowGardenModule {
       robloxUsername: requestBody.robloxUsername,
       robloxDisplayName: requestBody.robloxDisplayName,
       couponCode: requestBody.couponCode,
+      vipDiscountPercent: requestBody.vipDiscountPercent,
+      vipLevel: requestBody.vipLevel,
       coupons: this.coupons,
       termsAccepted: requestBody.termsAccepted
     });
@@ -2276,11 +2321,15 @@ export class GrowGardenModule {
     } catch {
       subtotalInCents = 0;
     }
-    const discountInCents = Math.min(state.discountInCents || 0, subtotalInCents);
+    const vip = this.getCurrentCustomerVip();
+    const bestDiscount = selectBestDiscount({ subtotalInCents, couponDiscountInCents: state.discountInCents, vipDiscountPercent: vip.level.discountPercent });
+    const discountInCents = bestDiscount.discountInCents;
     return {
       subtotalInCents,
       discountInCents,
-      totalInCents: Math.max(0, subtotalInCents - discountInCents)
+      totalInCents: Math.max(0, subtotalInCents - discountInCents),
+      vip,
+      discountSource: bestDiscount.source
     };
   }
 
@@ -3348,7 +3397,10 @@ export class GrowGardenModule {
   }
 
   buildAdminSupportSection() {
-    const conversations = this.supportService.listActiveAdminConversations();
+    const conversations = this.supportService.listActiveAdminConversations().sort((a, b) => (
+      this.getSupportCustomerVip(b).level.discountPercent - this.getSupportCustomerVip(a).level.discountPercent
+      || String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+    ));
     const selectedId = conversations.some((conversation) => conversation.id === this.selectedSupportConversationId)
       ? this.selectedSupportConversationId
       : conversations[0]?.id;
@@ -3394,6 +3446,7 @@ export class GrowGardenModule {
   buildAdminSupportConversationCard(conversation, selected) {
     const unread = Number(conversation.unreadByAdmin || 0);
     const lastMessage = conversation.messages?.at(-1);
+    const vip = this.getSupportCustomerVip(conversation);
     return createElement('button', {
       type: 'button',
       class: `admin-support-card ${selected ? 'selected' : ''}`,
@@ -3401,7 +3454,7 @@ export class GrowGardenModule {
     }, [
       createElement('span', { class: 'admin-support-avatar' }, this.getSupportInitials(conversation.customerName)),
       createElement('span', { class: 'admin-support-card-copy' }, [
-        createElement('strong', {}, conversation.customerName),
+        createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip)]),
         createElement('small', {}, [
           conversation.customerEmail ? createElement('span', {}, conversation.customerEmail) : null,
           conversation.robloxUsername ? createElement('span', {}, `@${conversation.robloxUsername}`) : null
@@ -3419,10 +3472,11 @@ export class GrowGardenModule {
 
   buildAdminSupportDetail(conversation) {
     const closed = conversation.status === 'closed';
+    const vip = this.getSupportCustomerVip(conversation);
     return createElement('article', { class: 'admin-support-detail' }, [
       createElement('div', { class: 'admin-support-detail-top' }, [
         createElement('div', {}, [
-          createElement('strong', {}, conversation.customerName),
+          createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip)]),
           createElement('span', {}, [
             conversation.customerEmail || 'Email nao informado',
             conversation.robloxUsername ? ` · @${conversation.robloxUsername}` : ''
@@ -3495,7 +3549,10 @@ export class GrowGardenModule {
   }
 
   getActiveAdminOrders() {
-    return this.manualOrders.filter(isActiveOrder);
+    return this.manualOrders.filter(isActiveOrder).sort((a, b) => (
+      this.getOrderCustomerVip(b).level.discountPercent - this.getOrderCustomerVip(a).level.discountPercent
+      || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+    ));
   }
 
   selectAdminSupportConversation(conversationId) {
@@ -3566,6 +3623,7 @@ export class GrowGardenModule {
   }
 
   buildAdminOrderCard(order) {
+    const vip = this.getOrderCustomerVip(order);
     const orderItems = Array.isArray(order.items) && order.items.length > 0
       ? order.items
       : [{
@@ -3591,7 +3649,7 @@ export class GrowGardenModule {
         this.buildPaymentLine('Cupom', order.couponCode || 'Sem cupom'),
         this.buildPaymentLine('Desconto', `-${formatMoney(order.discountInCents, 'BRL')}`),
         this.buildPaymentLine('Total', formatMoney(order.totalInCents, 'BRL')),
-        this.buildPaymentLine('Cliente', order.customerName),
+        this.buildPaymentLine('Cliente', createElement('span', { class: 'admin-customer-vip' }, [order.customerName, this.buildVipBadge(vip, { includePrefix: true })])),
         this.buildPaymentLine('Roblox', `@${order.robloxUsername}`),
         order.storageMode === 'local' ? this.buildPaymentLine('Origem', 'Pedido manual') : null,
         this.buildPaymentLine('Pagamento informado', order.customerReportedPayment ? 'Sim' : 'Nao'),
@@ -3637,6 +3695,10 @@ export class GrowGardenModule {
       });
     });
     return card;
+  }
+
+  buildVipBadge(vip, { includePrefix = true } = {}) {
+    return createElement('span', { class: `vip-badge vip-${vip.level.id}` }, `${includePrefix ? 'VIP ' : ''}${vip.level.name}`);
   }
 
   async applyAdminOrderAction(orderCode, action) {

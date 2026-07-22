@@ -8122,9 +8122,30 @@ body {
 .support-product-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .support-go-cart { min-height: 0; padding: 2px 5px; color: #d8ff00; }
 
+.vip-card { --vip-color: #b77945; display: grid; gap: 12px; width: 100%; padding: 18px; border: 1px solid color-mix(in srgb, var(--vip-color) 58%, transparent); border-radius: 14px; background: linear-gradient(145deg, color-mix(in srgb, var(--vip-color) 16%, #151616), #0c0e0e 68%); box-shadow: 0 0 24px color-mix(in srgb, var(--vip-color) 12%, transparent); }
+.vip-card.vip-silver, .vip-badge.vip-silver { --vip-color: #c7d0d9; }
+.vip-card.vip-gold, .vip-badge.vip-gold { --vip-color: #ffd43b; }
+.vip-card.vip-diamond, .vip-badge.vip-diamond { --vip-color: #39d8ff; }
+.vip-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.vip-card-heading small { color: rgba(255,255,255,.65); font-weight: 800; }
+.vip-card-heading h2 { margin: 3px 0 0; color: #fff; font-size: 1.15rem; }
+.vip-badge { --vip-color: #b77945; display: inline-flex; align-items: center; width: max-content; margin-left: 7px; padding: 4px 9px; border: 1px solid color-mix(in srgb, var(--vip-color) 72%, #fff); border-radius: 999px; background: color-mix(in srgb, var(--vip-color) 18%, #0b0d0d); color: var(--vip-color); box-shadow: 0 0 12px color-mix(in srgb, var(--vip-color) 20%, transparent); font-size: .7rem; font-style: normal; font-weight: 950; white-space: nowrap; vertical-align: middle; }
+.vip-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.vip-stats span { display: grid; gap: 3px; color: rgba(255,255,255,.65); font-size: .78rem; }
+.vip-stats strong { color: #fff; font-size: 1rem; }
+.vip-progress { height: 8px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.1); }
+.vip-progress span { display: block; height: 100%; border-radius: inherit; background: var(--vip-color); box-shadow: 0 0 12px var(--vip-color); }
+.vip-benefits, .vip-next-level { margin: 0; color: rgba(255,255,255,.78); }
+.vip-next-level { color: var(--vip-color); font-weight: 850; }
+.customer-orders-main > .vip-card { margin-bottom: 18px; }
+.account-profile-card > .vip-card { margin-top: 8px; }
+.admin-customer-vip { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.vip-checkout-message { border-color: rgba(57,216,255,.3); background: rgba(57,216,255,.08); }
+
 @media (max-width: 420px) {
   .support-product-actions { grid-template-columns: 1fr; }
   .support-product-actions .support-product-agent { grid-column: auto; }
+  .vip-stats { grid-template-columns: 1fr; }
 }
 
 .support-success {

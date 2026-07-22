@@ -3,6 +3,7 @@ import { ReviewService } from '../services/ReviewService.js';
 import { LocalOrderRepository } from '../services/grow-garden-2/LocalOrderRepository.js';
 import { formatMoney } from '../services/grow-garden-2/StoreCommerceService.js';
 import { SupportChatWidget } from './SupportChatWidget.js';
+import { calculateVipStatus } from '../services/VipLoyaltyService.js';
 import { createElement } from './ui-utils.js';
 
 const PORTAL_CARD_IMAGES = {
@@ -615,6 +616,7 @@ export class HomePortal {
     const displayName = user.name || this.session?.name || 'Cliente';
     const email = user.email || this.session?.email || '';
     const filteredOrders = this.filterCustomerOrders(orders);
+    const vip = calculateVipStatus(orders);
     const page = createElement('main', { class: 'customer-profile-page' }, [
       createElement('aside', { class: 'customer-profile-sidebar' }, [
         createElement('div', { class: 'customer-profile-hero' }, [
@@ -640,6 +642,7 @@ export class HomePortal {
           createElement('strong', {}, 'Meus pedidos')
         ]),
         createElement('h1', {}, 'Meus pedidos'),
+        this.buildVipCard(vip),
         this.accountOrdersLoading ? createElement('p', { class: 'checkout-message' }, 'Carregando suas compras...') : null,
         this.accountOrdersError ? createElement('p', { class: 'checkout-message error' }, this.accountOrdersError) : null,
         filteredOrders.length === 0 ? this.buildEmptyOrdersState(orders.length === 0) : null,
@@ -1033,6 +1036,7 @@ export class HomePortal {
         createElement('strong', {}, 'Conta pra gente como foi sua experiencia na Thur Blox.'),
         createElement('p', {}, 'Escolha uma nota de 1 a 5 estrelas. O comentario e opcional.')
       ]),
+      this.buildVipCard(calculateVipStatus(orders)),
       createElement('fieldset', { class: 'review-rating' }, [
         createElement('legend', {}, 'Sua nota'),
         ...[1, 2, 3, 4, 5].map((rating) => createElement('label', {}, [
@@ -1046,6 +1050,30 @@ export class HomePortal {
         createElement('textarea', { name: 'comment', maxlength: '1000', placeholder: 'Conte como foi sua experiencia...' })
       ]),
       createElement('button', { type: 'submit', class: 'button-primary' }, 'Enviar avaliacao')
+    ]);
+  }
+
+  buildVipCard(vip) {
+    const remaining = vip.nextLevel
+      ? `Faltam ${formatMoney(vip.amountRemainingInCents, 'BRL')} ou ${vip.ordersRemaining} ${vip.ordersRemaining === 1 ? 'pedido' : 'pedidos'} para você virar ${vip.nextLevel.name}.`
+      : 'Você alcançou o nível VIP máximo.';
+    return createElement('article', { class: `vip-card vip-${vip.level.id}` }, [
+      createElement('div', { class: 'vip-card-heading' }, [
+        createElement('div', {}, [
+          createElement('small', {}, 'Seu nível VIP'),
+          createElement('h2', {}, `Você é cliente ${vip.level.name}`)
+        ]),
+        createElement('span', { class: `vip-badge vip-${vip.level.id}` }, vip.level.name)
+      ]),
+      createElement('div', { class: 'vip-stats' }, [
+        createElement('span', {}, ['Total gasto', createElement('strong', {}, formatMoney(vip.totalSpentInCents, 'BRL'))]),
+        createElement('span', {}, ['Pedidos concluídos', createElement('strong', {}, String(vip.completedOrders))])
+      ]),
+      createElement('div', { class: 'vip-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(vip.progressPercent) }, [
+        createElement('span', { style: `width:${vip.progressPercent}%` })
+      ]),
+      createElement('p', { class: 'vip-benefits' }, vip.level.benefits.join(' • ')),
+      createElement('small', { class: 'vip-next-level' }, remaining)
     ]);
   }
 
