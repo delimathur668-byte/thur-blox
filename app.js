@@ -35,6 +35,7 @@ const isAdminRoute = (value) => /^\/?(admin|painel|support-admin|orders-admin|st
 
 const getAdminInitialPanelTab = () => {
   const requested = `${window.location.pathname} ${window.location.search} ${window.location.hash}`.toLowerCase();
+  if (/\bvip\b|clube/.test(requested)) return 'vip';
   if (/descont|cupom|cupons/.test(requested)) return 'discounts';
   if (/pedido|order/.test(requested)) return 'orders';
   if (/estoque|stock/.test(requested)) return 'stock';

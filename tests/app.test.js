@@ -47,7 +47,7 @@ import { InventoryOverrideService } from '../src/services/InventoryOverrideServi
 import { CouponAdminService } from '../src/services/CouponAdminService.js';
 import { getSupportBotReply, isActiveSupportConversation, SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
 import { findChatProduct, getChatProductRoute, hasChatPurchaseIntent } from '../src/services/ChatProductSearchService.js';
-import { calculateVipStatus, calculateVipDiscountInCents, getVipStatusForCustomer, isVipEligibleOrder, selectBestDiscount } from '../src/services/VipLoyaltyService.js';
+import { calculateVipStatus, calculateVipDiscountInCents, getVipStatusForCustomer, isVipEligibleOrder, selectBestDiscount, VIP_OVERRIDES_STORAGE_KEY, VipService } from '../src/services/VipLoyaltyService.js';
 import { ReviewService, REVIEW_STORAGE_KEY } from '../src/services/ReviewService.js';
 import { OrderStore } from '../server/store/OrderStore.js';
 import { SandboxPixPaymentGateway } from '../server/store/PaymentGateway.js';
@@ -977,6 +977,29 @@ test('VIP checkout chooses the larger discount without making totals negative', 
   assert.equal(result.order.discountSource, 'vip');
   assert.equal(result.order.discountInCents, 39);
   assert.equal(result.order.totalInCents, 751);
+});
+
+test('Clube VIP admin persists manual overrides without changing automatic customers', () => {
+  const storage = createMemoryStorage();
+  const vipService = new VipService({ storage });
+  const customer = { id: 'customer-1', email: 'cliente@example.com', name: 'Cliente' };
+  const otherCustomer = { id: 'customer-2', email: 'outro@example.com', name: 'Outro' };
+  const orders = [{ customerUserId: 'customer-1', totalInCents: 100, paymentStatus: 'confirmed' }];
+  assert.equal(vipService.getCustomerVipLevel(customer, orders).level.name, 'Bronze');
+  vipService.setManualVipLevel(customer, 'diamond');
+  assert.equal(vipService.getCustomerVipLevel(customer, orders).level.name, 'Diamante');
+  assert.equal(vipService.getCustomerVipLevel(customer, orders).isManualOverride, true);
+  assert.equal(vipService.getCustomerVipLevel(otherCustomer, orders).level.name, 'Bronze');
+  assert.equal(JSON.parse(storage.getItem(VIP_OVERRIDES_STORAGE_KEY))['customer-1'], 'diamond');
+  vipService.clearManualVipLevel(customer);
+  assert.equal(vipService.getCustomerVipLevel(customer, orders).level.name, 'Bronze');
+
+  assert.equal(growGardenModuleCode.includes("['vip', 'Clube VIP']"), true);
+  assert.equal(growGardenModuleCode.includes('buildAdminVipSection'), true);
+  assert.equal(growGardenModuleCode.includes('data-vip-level-form'), true);
+  assert.equal(growGardenModuleCode.includes('data-vip-history'), true);
+  assert.equal(growGardenModuleCode.includes('data-vip-support'), true);
+  assert.equal(styles.includes('.admin-vip-summary'), true);
 });
 
 test('Blox Fruits category exposes five Pix products with isolated storefront inventory', () => {

@@ -4,6 +4,7 @@ export const VIP_LEVELS = Object.freeze([
   { id: 'gold', name: 'Ouro', minSpentInCents: 8000, minOrders: 5, discountPercent: 5, benefits: ['5% de desconto', 'Prioridade no suporte'] },
   { id: 'diamond', name: 'Diamante', minSpentInCents: 15000, minOrders: 10, discountPercent: 8, benefits: ['8% de desconto', 'Prioridade no suporte', 'Prioridade na entrega'] }
 ]);
+export const VIP_OVERRIDES_STORAGE_KEY = 'thur_blox_vip_overrides';
 
 const normalize = (value) => String(value || '').trim().toLowerCase();
 const cancelledStatuses = new Set(['cancelled', 'canceled', 'cancelado', 'refunded', 'reembolsado']);
@@ -48,6 +49,76 @@ export const calculateVipStatus = (orders = []) => {
 };
 
 export const getVipStatusForCustomer = (orders, customer) => calculateVipStatus((orders || []).filter((order) => orderMatchesCustomer(order, customer)));
+
+export const getVipCustomerKey = (customer = {}) => normalize(customer.userId || customer.id || customer.email || customer.name || customer.customerName);
+
+const applyOverride = (status, overrideLevel) => {
+  const override = VIP_LEVELS.find((level) => level.id === normalize(overrideLevel));
+  if (!override) return { ...status, automaticLevel: status.level, overrideLevel: 'automatic', isManualOverride: false };
+  const levelIndex = VIP_LEVELS.findIndex((level) => level.id === override.id);
+  const nextLevel = VIP_LEVELS[levelIndex + 1] || null;
+  const amountRemainingInCents = nextLevel ? Math.max(0, nextLevel.minSpentInCents - status.totalSpentInCents) : 0;
+  const ordersRemaining = nextLevel ? Math.max(0, nextLevel.minOrders - status.completedOrders) : 0;
+  const progressPercent = nextLevel ? Math.round(Math.max(
+    Math.min(1, status.totalSpentInCents / nextLevel.minSpentInCents),
+    Math.min(1, status.completedOrders / nextLevel.minOrders)
+  ) * 100) : 100;
+  return { ...status, automaticLevel: status.level, level: override, nextLevel, amountRemainingInCents, ordersRemaining, progressPercent, overrideLevel: override.id, isManualOverride: true };
+};
+
+export class VipService {
+  constructor({ storage = typeof window !== 'undefined' ? window.localStorage : null } = {}) {
+    this.storage = storage;
+  }
+
+  loadOverrides() {
+    if (!this.storage) return {};
+    try {
+      const parsed = JSON.parse(this.storage.getItem(VIP_OVERRIDES_STORAGE_KEY) || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  getCustomerVipLevel(customer, orders = []) {
+    const status = getVipStatusForCustomer(orders, customer);
+    return applyOverride(status, this.loadOverrides()[getVipCustomerKey(customer)]);
+  }
+
+  calculateVipLevel(customerOrders = []) { return calculateVipStatus(customerOrders); }
+  getVipDiscount(level) { return VIP_LEVELS.find((item) => item.id === normalize(level) || item.name.toLowerCase() === normalize(level))?.discountPercent || 0; }
+  getVipProgress(customerOrders = []) { return calculateVipStatus(customerOrders); }
+
+  getVipSummary(customers = []) {
+    return customers.reduce((summary, customer) => {
+      summary.total += 1;
+      summary[customer.vip.level.id] += 1;
+      summary.revenueInCents += customer.vip.totalSpentInCents;
+      if (['gold', 'diamond'].includes(customer.vip.level.id)) summary.priority += 1;
+      return summary;
+    }, { total: 0, bronze: 0, silver: 0, gold: 0, diamond: 0, revenueInCents: 0, priority: 0 });
+  }
+
+  setManualVipLevel(customer, level) {
+    const key = getVipCustomerKey(customer);
+    const normalizedLevel = normalize(level);
+    if (!key) throw new Error('Cliente VIP inválido.');
+    if (normalizedLevel === 'automatic') return this.clearManualVipLevel(customer);
+    if (!VIP_LEVELS.some((item) => item.id === normalizedLevel)) throw new Error('Nível VIP inválido.');
+    const overrides = this.loadOverrides();
+    overrides[key] = normalizedLevel;
+    this.storage?.setItem(VIP_OVERRIDES_STORAGE_KEY, JSON.stringify(overrides));
+    return normalizedLevel;
+  }
+
+  clearManualVipLevel(customer) {
+    const overrides = this.loadOverrides();
+    delete overrides[getVipCustomerKey(customer)];
+    this.storage?.setItem(VIP_OVERRIDES_STORAGE_KEY, JSON.stringify(overrides));
+    return 'automatic';
+  }
+}
 
 export const calculateVipDiscountInCents = (subtotalInCents, discountPercent) => {
   const subtotal = Math.max(0, Number.isInteger(subtotalInCents) ? subtotalInCents : 0);

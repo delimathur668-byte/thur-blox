@@ -22,7 +22,7 @@ import {
 } from '../services/InventoryOverrideService.js';
 import { CouponAdminService } from '../services/CouponAdminService.js';
 import { SupportChatWidget } from './SupportChatWidget.js';
-import { calculateVipStatus, getVipStatusForCustomer, selectBestDiscount } from '../services/VipLoyaltyService.js';
+import { getVipCustomerKey, orderMatchesCustomer, selectBestDiscount, VIP_LEVELS, VipService } from '../services/VipLoyaltyService.js';
 
 const DEFAULT_ORDER_API_URL = '/api/store/orders';
 const ORDER_API_PATH = '/store/orders';
@@ -172,6 +172,9 @@ export class GrowGardenModule {
     this.supportService = new SupportService();
     this.inventoryOverrideService = new InventoryOverrideService();
     this.couponAdminService = new CouponAdminService();
+    this.vipService = new VipService();
+    this.selectedVipCustomerKey = '';
+    this.vipAdminMessage = '';
     this.selectedSupportConversationId = null;
     this.supportAdminMessage = '';
     this.pendingSupportClosureId = '';
@@ -1275,26 +1278,34 @@ export class GrowGardenModule {
 
   getCurrentCustomerVip() {
     const user = this.currentUser || this.authService.getCurrentUser() || {};
-    return getVipStatusForCustomer(this.getVipOrders(), {
+    return this.vipService.getCustomerVipLevel({
       userId: user.id,
       email: user.email || this.cartState.email,
       name: user.name || this.cartState.customerName
-    });
+    }, this.getVipOrders());
   }
 
   getOrderCustomerVip(order) {
-    return getVipStatusForCustomer(this.getVipOrders(), {
+    const registeredCustomer = this.authService.loadUsers().find((user) => (
+      (order.customerUserId && String(user.id) === String(order.customerUserId))
+      || ((order.customerEmail || order.email) && String(user.email).toLowerCase() === String(order.customerEmail || order.email).toLowerCase())
+    ));
+    return this.vipService.getCustomerVipLevel(registeredCustomer || {
       userId: order.customerUserId,
       email: order.customerEmail || order.email,
       name: order.customerName
-    });
+    }, this.getVipOrders());
   }
 
   getSupportCustomerVip(conversation) {
-    return getVipStatusForCustomer(this.getVipOrders(), {
+    const registeredCustomer = this.authService.loadUsers().find((user) => (
+      (conversation.customerEmail && String(user.email).toLowerCase() === String(conversation.customerEmail).toLowerCase())
+      || (conversation.customerName && String(user.name).toLowerCase() === String(conversation.customerName).toLowerCase())
+    ));
+    return this.vipService.getCustomerVipLevel(registeredCustomer || {
       email: conversation.customerEmail,
       name: conversation.customerName
-    });
+    }, this.getVipOrders());
   }
 
   recalculateCartCoupon() {
@@ -2578,7 +2589,8 @@ export class GrowGardenModule {
       ['orders', 'Pedidos'],
       ['stock', 'Estoque'],
       ['products', 'Produtos'],
-      ['discounts', 'Descontos']
+      ['discounts', 'Descontos'],
+      ['vip', 'Clube VIP']
     ];
     return createElement('nav', { class: 'admin-panel-tabs', 'aria-label': 'Secoes administrativas' }, tabs.map(([id, label]) => createElement('button', {
       type: 'button',
@@ -2596,6 +2608,7 @@ export class GrowGardenModule {
     if (this.adminPanelTab === 'stock') return this.buildAdminInventorySection();
     if (this.adminPanelTab === 'products') return this.buildAdminProductsSection();
     if (this.adminPanelTab === 'discounts') return this.buildAdminDiscountsSection();
+    if (this.adminPanelTab === 'vip') return this.buildAdminVipSection();
     return this.buildAdminSupportSection();
   }
 
@@ -3396,6 +3409,156 @@ export class GrowGardenModule {
     this.render();
   }
 
+  getAdminVipCustomers() {
+    const orders = this.getVipOrders();
+    const customers = new Map();
+    this.authService.loadUsers().filter((user) => !this.authService.isAdminEmail(user.email)).forEach((user) => {
+      const key = getVipCustomerKey(user);
+      customers.set(key, { id: user.id, name: user.name || 'Cliente', email: user.email || '', robloxUsername: user.robloxUsername || '', hasAccount: true });
+    });
+    orders.forEach((order) => {
+      const identity = {
+        id: order.customerUserId || order.customer_user_id || '',
+        name: order.customerName || order.customer_name || 'Cliente',
+        email: order.customerEmail || order.customer_email || order.email || '',
+        robloxUsername: order.robloxUsername || ''
+      };
+      const existingEntry = [...customers.entries()].find(([, customer]) => customer.email && identity.email && customer.email.toLowerCase() === identity.email.toLowerCase());
+      const key = existingEntry?.[0] || getVipCustomerKey(identity);
+      if (!key) return;
+      customers.set(key, { ...identity, ...customers.get(key), name: customers.get(key)?.name || identity.name, hasAccount: customers.get(key)?.hasAccount === true });
+    });
+    return [...customers.values()].map((customer) => {
+      const customerOrders = orders.filter((order) => orderMatchesCustomer(order, customer));
+      const vip = this.vipService.getCustomerVipLevel(customer, orders);
+      const sortedOrders = customerOrders.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+      return { ...customer, key: getVipCustomerKey(customer), vip, orders: sortedOrders, lastOrder: sortedOrders[0] || null };
+    }).sort((a, b) => b.vip.level.discountPercent - a.vip.level.discountPercent || b.vip.totalSpentInCents - a.vip.totalSpentInCents);
+  }
+
+  buildAdminVipSection() {
+    const customers = this.getAdminVipCustomers();
+    const summary = this.vipService.getVipSummary(customers);
+    const accountCount = customers.filter((customer) => customer.hasAccount).length;
+    const section = createElement('section', { class: 'admin-panel-section admin-vip-section' }, [
+      createElement('header', { class: 'admin-vip-hero' }, [
+        createElement('span', { class: 'admin-vip-crown', 'aria-hidden': 'true' }, ''),
+        createElement('div', {}, [
+          createElement('span', { class: 'garden-kicker' }, 'Fidelidade premium'),
+          createElement('h3', {}, 'Clube VIP Delima Blox'),
+          createElement('p', {}, 'Acompanhe níveis, benefícios, receita e prioridades dos melhores clientes da loja.')
+        ])
+      ]),
+      this.vipAdminMessage ? createElement('p', { class: 'support-admin-notice', role: 'status' }, this.vipAdminMessage) : null,
+      createElement('div', { class: 'admin-vip-summary' }, [
+        this.buildAdminVipSummaryCard('Clientes VIP', accountCount, 'Clientes com conta', 'customers'),
+        this.buildAdminVipSummaryCard('Bronze', summary.bronze, 'Acesso padrão', 'bronze'),
+        this.buildAdminVipSummaryCard('Prata', summary.silver, '3% de desconto', 'silver'),
+        this.buildAdminVipSummaryCard('Ouro', summary.gold, 'Suporte prioritário', 'gold'),
+        this.buildAdminVipSummaryCard('Diamante', summary.diamond, 'Entrega prioritária', 'diamond'),
+        this.buildAdminVipSummaryCard('Receita VIP', formatMoney(summary.revenueInCents, 'BRL'), 'Pedidos elegíveis', 'revenue'),
+        this.buildAdminVipSummaryCard('Prioritários', summary.priority, 'Clientes Ouro/Diamante', 'priority')
+      ]),
+      customers.length ? createElement('div', { class: 'admin-vip-list' }, customers.map((customer) => this.buildAdminVipCustomerCard(customer)))
+        : createElement('div', { class: 'admin-support-empty' }, [createElement('strong', {}, 'Nenhum cliente cadastrado'), createElement('p', {}, 'Clientes e compras aparecerão aqui automaticamente.')])
+    ]);
+    section.querySelectorAll('[data-vip-level-form]').forEach((form) => form.addEventListener('submit', (event) => this.saveAdminVipLevel(event, customers)));
+    section.querySelectorAll('[data-vip-history]').forEach((button) => button.addEventListener('click', () => {
+      const key = button.getAttribute('data-vip-history');
+      this.selectedVipCustomerKey = this.selectedVipCustomerKey === key ? '' : key;
+      this.render();
+    }));
+    section.querySelectorAll('[data-vip-copy]').forEach((button) => button.addEventListener('click', () => this.copyAdminVipCode(button.getAttribute('data-vip-copy'), customers)));
+    section.querySelectorAll('[data-vip-support]').forEach((button) => button.addEventListener('click', () => this.openAdminVipSupport(button.getAttribute('data-vip-support'), customers)));
+    return section;
+  }
+
+  buildAdminVipSummaryCard(label, value, description, tone) {
+    return createElement('article', { class: `admin-vip-summary-card vip-summary-${tone}` }, [
+      createElement('span', { class: 'admin-vip-summary-icon', 'aria-hidden': 'true' }, ''),
+      createElement('small', {}, label), createElement('strong', {}, String(value)), createElement('p', {}, description)
+    ]);
+  }
+
+  buildAdminVipCustomerCard(customer) {
+    const { vip } = customer;
+    const remaining = vip.nextLevel ? `Faltam ${formatMoney(vip.amountRemainingInCents, 'BRL')} ou ${vip.ordersRemaining} pedidos para ${vip.nextLevel.name}` : 'Nível máximo alcançado';
+    const priority = ['gold', 'diamond'].includes(vip.level.id);
+    return createElement('article', { class: `admin-vip-customer vip-${vip.level.id}` }, [
+      createElement('div', { class: 'admin-vip-customer-head' }, [
+        createElement('div', { class: 'admin-vip-customer-identity' }, [
+          createElement('span', { class: 'admin-support-avatar' }, this.getSupportInitials(customer.name)),
+          createElement('div', {}, [createElement('strong', {}, customer.name), createElement('small', {}, customer.email || 'E-mail não informado'), customer.robloxUsername ? createElement('small', {}, `@${customer.robloxUsername}`) : null])
+        ]),
+        createElement('div', { class: 'admin-vip-level-stack' }, [this.buildVipBadge(vip), priority ? createElement('span', { class: 'vip-priority-label' }, vip.level.id === 'diamond' ? 'Suporte e entrega prioritários' : 'Suporte prioritário') : null])
+      ]),
+      createElement('div', { class: 'admin-vip-metrics' }, [
+        createElement('span', {}, ['Total gasto', createElement('strong', {}, formatMoney(vip.totalSpentInCents, 'BRL'))]),
+        createElement('span', {}, ['Pedidos', createElement('strong', {}, `${vip.completedOrders} concluídos`)]),
+        createElement('span', {}, ['Último pedido', createElement('strong', {}, customer.lastOrder ? this.formatSupportDate(customer.lastOrder.createdAt) : 'Nenhum')]),
+        createElement('span', {}, ['Benefício', createElement('strong', {}, vip.level.benefits.join(' + '))])
+      ]),
+      createElement('div', { class: 'admin-vip-progress-row' }, [createElement('div', { class: 'vip-progress' }, [createElement('span', { style: `width:${vip.progressPercent}%` })]), createElement('small', {}, remaining)]),
+      vip.isManualOverride ? createElement('p', { class: 'vip-manual-note' }, 'Nível ajustado manualmente pelo admin.') : null,
+      createElement('form', { class: 'admin-vip-level-form', 'data-vip-level-form': customer.key }, [
+        createElement('label', {}, [createElement('span', {}, 'Nível VIP'), createElement('select', { name: 'vipLevel' }, [
+          createElement('option', { value: 'automatic', selected: vip.overrideLevel === 'automatic' ? 'selected' : null }, 'Automático'),
+          ...VIP_LEVELS.map((level) => createElement('option', { value: level.id, selected: vip.overrideLevel === level.id ? 'selected' : null }, level.name))
+        ])]),
+        createElement('button', { type: 'submit', class: 'button-primary' }, 'Salvar nível')
+      ]),
+      createElement('div', { class: 'admin-vip-actions' }, [
+        createElement('button', { type: 'button', class: 'button-secondary', 'data-vip-history': customer.key }, 'Ver histórico'),
+        createElement('button', { type: 'button', class: 'button-secondary', 'data-vip-copy': customer.key }, 'Copiar cupom VIP'),
+        createElement('button', { type: 'button', class: 'button-secondary', 'data-vip-support': customer.key }, 'Abrir suporte')
+      ]),
+      this.selectedVipCustomerKey === customer.key ? this.buildAdminVipHistory(customer.orders) : null
+    ]);
+  }
+
+  buildAdminVipHistory(orders) {
+    return createElement('div', { class: 'admin-vip-history' }, orders.length ? orders.map((order) => createElement('div', {}, [
+      createElement('strong', {}, order.orderCode || 'Pedido'), createElement('span', {}, formatMoney(order.totalInCents || 0, 'BRL')), createElement('small', {}, this.formatOrderStatus(order))
+    ])) : [createElement('p', {}, 'Nenhuma compra encontrada.')]);
+  }
+
+  saveAdminVipLevel(event, customers) {
+    event.preventDefault();
+    const customer = customers.find((item) => item.key === event.currentTarget.getAttribute('data-vip-level-form'));
+    if (!customer) return;
+    const level = String(new FormData(event.currentTarget).get('vipLevel') || 'automatic');
+    this.vipService.setManualVipLevel(customer, level);
+    this.vipAdminMessage = level === 'automatic' ? 'Cálculo automático restaurado.' : 'Nível ajustado manualmente pelo admin.';
+    this.render();
+  }
+
+  async copyAdminVipCode(key, customers) {
+    const customer = customers.find((item) => item.key === key);
+    if (!customer) return;
+    const code = `VIP-${customer.vip.level.name.toUpperCase()}-${String(customer.email || customer.id || 'CLIENTE').split('@')[0].replace(/[^A-Z0-9]/gi, '').toUpperCase()}`;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível');
+      await navigator.clipboard.writeText(code);
+      this.vipAdminMessage = `Cupom de referência ${code} copiado. O desconto VIP continua automático.`;
+    } catch {
+      this.vipAdminMessage = `Código VIP: ${code}. Copie manualmente; o desconto VIP continua automático.`;
+    }
+    this.render();
+  }
+
+  openAdminVipSupport(key, customers) {
+    const customer = customers.find((item) => item.key === key);
+    if (!customer) return;
+    const conversation = this.supportService.listActiveAdminConversations().find((item) => (
+      String(item.customerEmail || '').toLowerCase() === String(customer.email || '').toLowerCase()
+      || String(item.customerName || '').toLowerCase() === String(customer.name || '').toLowerCase()
+    ));
+    this.selectedSupportConversationId = conversation?.id || null;
+    this.supportAdminMessage = conversation ? '' : 'Este cliente ainda não possui conversa de suporte ativa.';
+    this.adminPanelTab = 'support';
+    this.render();
+  }
+
   buildAdminSupportSection() {
     const conversations = this.supportService.listActiveAdminConversations().sort((a, b) => (
       this.getSupportCustomerVip(b).level.discountPercent - this.getSupportCustomerVip(a).level.discountPercent
@@ -3454,7 +3617,7 @@ export class GrowGardenModule {
     }, [
       createElement('span', { class: 'admin-support-avatar' }, this.getSupportInitials(conversation.customerName)),
       createElement('span', { class: 'admin-support-card-copy' }, [
-        createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip)]),
+        createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip), ['gold', 'diamond'].includes(vip.level.id) ? createElement('span', { class: 'vip-priority-label' }, 'Prioridade') : null]),
         createElement('small', {}, [
           conversation.customerEmail ? createElement('span', {}, conversation.customerEmail) : null,
           conversation.robloxUsername ? createElement('span', {}, `@${conversation.robloxUsername}`) : null
@@ -3476,7 +3639,7 @@ export class GrowGardenModule {
     return createElement('article', { class: 'admin-support-detail' }, [
       createElement('div', { class: 'admin-support-detail-top' }, [
         createElement('div', {}, [
-          createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip)]),
+          createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip), ['gold', 'diamond'].includes(vip.level.id) ? createElement('span', { class: 'vip-priority-label' }, 'Prioridade') : null]),
           createElement('span', {}, [
             conversation.customerEmail || 'Email nao informado',
             conversation.robloxUsername ? ` · @${conversation.robloxUsername}` : ''
@@ -3649,7 +3812,7 @@ export class GrowGardenModule {
         this.buildPaymentLine('Cupom', order.couponCode || 'Sem cupom'),
         this.buildPaymentLine('Desconto', `-${formatMoney(order.discountInCents, 'BRL')}`),
         this.buildPaymentLine('Total', formatMoney(order.totalInCents, 'BRL')),
-        this.buildPaymentLine('Cliente', createElement('span', { class: 'admin-customer-vip' }, [order.customerName, this.buildVipBadge(vip, { includePrefix: true })])),
+        this.buildPaymentLine('Cliente', createElement('span', { class: 'admin-customer-vip' }, [order.customerName, this.buildVipBadge(vip, { includePrefix: true }), ['gold', 'diamond'].includes(vip.level.id) ? createElement('small', { class: 'vip-priority-label' }, vip.level.id === 'diamond' ? 'Prioridade no suporte e entrega' : 'Prioridade no suporte') : null])),
         this.buildPaymentLine('Roblox', `@${order.robloxUsername}`),
         order.storageMode === 'local' ? this.buildPaymentLine('Origem', 'Pedido manual') : null,
         this.buildPaymentLine('Pagamento informado', order.customerReportedPayment ? 'Sim' : 'Nao'),

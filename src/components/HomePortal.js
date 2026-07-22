@@ -3,7 +3,7 @@ import { ReviewService } from '../services/ReviewService.js';
 import { LocalOrderRepository } from '../services/grow-garden-2/LocalOrderRepository.js';
 import { formatMoney } from '../services/grow-garden-2/StoreCommerceService.js';
 import { SupportChatWidget } from './SupportChatWidget.js';
-import { calculateVipStatus } from '../services/VipLoyaltyService.js';
+import { VipService } from '../services/VipLoyaltyService.js';
 import { createElement } from './ui-utils.js';
 
 const PORTAL_CARD_IMAGES = {
@@ -224,6 +224,7 @@ export class HomePortal {
     this.currentUser = this.authService.getCurrentUser();
     this.localOrderRepository = new LocalOrderRepository();
     this.reviewService = new ReviewService();
+    this.vipService = new VipService();
     this.loginOpen = initialLoginOpen;
     this.loginRedirect = initialLoginRedirect;
     this.profileOpen = false;
@@ -616,7 +617,7 @@ export class HomePortal {
     const displayName = user.name || this.session?.name || 'Cliente';
     const email = user.email || this.session?.email || '';
     const filteredOrders = this.filterCustomerOrders(orders);
-    const vip = calculateVipStatus(orders);
+    const vip = this.vipService.getCustomerVipLevel({ id: user.id, email, name: displayName }, orders);
     const page = createElement('main', { class: 'customer-profile-page' }, [
       createElement('aside', { class: 'customer-profile-sidebar' }, [
         createElement('div', { class: 'customer-profile-hero' }, [
@@ -813,6 +814,7 @@ export class HomePortal {
         this.buildAccountLine('E-mail', user.email || this.session?.email || ''),
         this.buildAccountLine('Roblox', user.robloxUsername ? `@${user.robloxUsername}` : 'Não informado')
       ]),
+      this.buildVipCard(this.vipService.getCustomerVipLevel({ id: user.id, email: user.email || this.session?.email, name: user.name }, orders)),
       createElement('div', { class: 'account-profile-actions' }, [
         createElement('button', { type: 'button', class: 'button-primary', 'data-action': 'account-orders' }, 'Minhas compras'),
         createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'account-store' }, 'Voltar para a loja'),
@@ -1036,7 +1038,6 @@ export class HomePortal {
         createElement('strong', {}, 'Conta pra gente como foi sua experiencia na Thur Blox.'),
         createElement('p', {}, 'Escolha uma nota de 1 a 5 estrelas. O comentario e opcional.')
       ]),
-      this.buildVipCard(calculateVipStatus(orders)),
       createElement('fieldset', { class: 'review-rating' }, [
         createElement('legend', {}, 'Sua nota'),
         ...[1, 2, 3, 4, 5].map((rating) => createElement('label', {}, [
@@ -1060,8 +1061,8 @@ export class HomePortal {
     return createElement('article', { class: `vip-card vip-${vip.level.id}` }, [
       createElement('div', { class: 'vip-card-heading' }, [
         createElement('div', {}, [
-          createElement('small', {}, 'Seu nível VIP'),
-          createElement('h2', {}, `Você é cliente ${vip.level.name}`)
+          createElement('small', {}, 'Clube VIP Delima Blox'),
+          createElement('h2', {}, `Você é VIP ${vip.level.name}`)
         ]),
         createElement('span', { class: `vip-badge vip-${vip.level.id}` }, vip.level.name)
       ]),
@@ -1073,7 +1074,8 @@ export class HomePortal {
         createElement('span', { style: `width:${vip.progressPercent}%` })
       ]),
       createElement('p', { class: 'vip-benefits' }, vip.level.benefits.join(' • ')),
-      createElement('small', { class: 'vip-next-level' }, remaining)
+      createElement('small', { class: 'vip-next-level' }, remaining),
+      vip.isManualOverride ? createElement('small', { class: 'vip-manual-note' }, 'Nível ajustado manualmente pelo admin.') : null
     ]);
   }
 
