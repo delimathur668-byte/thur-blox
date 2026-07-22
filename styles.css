@@ -8124,6 +8124,17 @@ body {
 .support-quick-actions { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 5px; scrollbar-width: thin; }
 .support-quick-actions button { flex: 0 0 auto; min-height: 32px; padding: 6px 10px; border: 1px solid rgba(216,255,0,.28); border-radius: 999px; background: rgba(216,255,0,.07); color: #fff; font: inherit; font-size: .72rem; font-weight: 850; cursor: pointer; white-space: nowrap; }
 .support-quick-actions button:hover { border-color: #d8ff00; color: #d8ff00; }
+.support-customer-identity { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-bottom: 1px solid rgba(216,255,0,.14); background: #151717; }
+.support-customer-identity > div { min-width: 0; display: grid; gap: 2px; }
+.support-customer-identity strong { overflow: hidden; color: #fff; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.support-customer-identity small { color: rgba(255,255,255,.58); font-size: .7rem; }
+.support-customer-identity button { flex: 0 0 auto; padding: 4px 0; border: 0; background: transparent; color: #d8ff00; font: inherit; font-size: .7rem; font-weight: 850; cursor: pointer; }
+.support-profile-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-bottom: 10px; }
+.support-profile-form > strong, .support-profile-form .support-profile-actions { grid-column: 1 / -1; }
+.support-profile-form .support-field { min-width: 0; }
+.support-profile-form .support-field:nth-of-type(3) { grid-column: 1 / -1; }
+.support-profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.support-profile-actions button { min-height: 38px; }
 .support-human-badge, .support-intent-badge { display: inline-flex; width: max-content; padding: 3px 7px; border: 1px solid rgba(57,216,255,.42); border-radius: 999px; background: rgba(57,216,255,.1); color: #7de8ff; font-size: .66rem; font-style: normal; font-weight: 900; }
 .support-human-badge { border-color: rgba(255,212,59,.48); background: rgba(255,212,59,.1); color: #ffd43b; }
 .admin-chat-message .support-intent-badge { margin-top: 6px; }
@@ -8194,6 +8205,8 @@ body {
   .vip-stats { grid-template-columns: 1fr; }
   .admin-vip-summary, .admin-vip-metrics { grid-template-columns: 1fr; }
   .admin-vip-customer-head { align-items: flex-start; flex-direction: column; }
+  .support-profile-form { grid-template-columns: 1fr; }
+  .support-profile-form > strong, .support-profile-form .support-field:nth-of-type(3), .support-profile-form .support-profile-actions { grid-column: auto; }
 }
 
 @media (min-width: 421px) and (max-width: 900px) {

@@ -26,6 +26,7 @@ export class SupportChatWidget {
     this.status = '';
     this.statusTimer = null;
     this.element = null;
+    this.editingProfile = false;
     this.products = [];
     this.cartService = new CartService();
     this.productsPromise = this.loadProducts();
@@ -122,7 +123,13 @@ export class SupportChatWidget {
   buildConversation(conversation) {
     const messages = this.service.getConversationMessages(conversation.id);
     const closed = conversation.status === 'closed';
+    const profile = this.service.getCustomerProfile() || {
+      name: conversation.customerName,
+      email: conversation.customerEmail,
+      robloxNick: conversation.robloxUsername
+    };
     const area = createElement('div', { class: 'support-conversation' }, [
+      this.buildCustomerIdentity(profile),
       createElement('div', { class: 'support-message-list' }, [
         ...messages.map((message) => this.buildMessage(message)),
         createElement('span', { class: 'support-messages-end', 'aria-hidden': 'true' })
@@ -130,7 +137,9 @@ export class SupportChatWidget {
       createElement('div', { class: 'support-conversation-bottom' }, [
         closed ? null : this.buildQuickActions({ conversation }),
         createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
-        closed
+        this.editingProfile
+          ? this.buildProfileEditor(profile)
+          : closed
           ? createElement('div', { class: 'support-closed-state' }, [
             createElement('p', { class: 'support-closed-note' }, 'Esta conversa foi fechada pelo suporte.'),
             createElement('button', { type: 'button', class: 'support-new-conversation', 'data-action': 'new-support-conversation' }, 'Iniciar nova conversa'),
@@ -148,19 +157,53 @@ export class SupportChatWidget {
         createElement('small', { class: 'support-powered' }, 'Suporte Thur Blox')
       ])
     ]);
-    const form = area.querySelector('form');
+    const form = area.querySelector('.support-compose');
     form?.addEventListener('submit', (event) => this.sendCustomerMessage(event, conversation.id, conversation.customerName));
     form?.addEventListener('input', () => this.updateSubmitState(form));
     area.querySelector('[data-action="new-support-conversation"]')?.addEventListener('click', () => this.startNewConversation());
+    area.querySelector('[data-action="edit-support-profile"]')?.addEventListener('click', () => {
+      this.editingProfile = true;
+      this.replace();
+    });
     return area;
   }
 
-  buildField(label, name, type, required) {
+  buildCustomerIdentity(profile) {
+    return createElement('div', { class: 'support-customer-identity' }, [
+      createElement('div', {}, [
+        createElement('strong', {}, `Atendendo como ${profile.name}`),
+        profile.robloxNick ? createElement('small', {}, `Nick: ${profile.robloxNick.startsWith('@') ? profile.robloxNick : `@${profile.robloxNick}`}`) : null
+      ]),
+      createElement('button', { type: 'button', 'data-action': 'edit-support-profile' }, 'Alterar meus dados')
+    ]);
+  }
+
+  buildProfileEditor(profile) {
+    const form = createElement('form', { class: 'support-profile-form', novalidate: 'novalidate' }, [
+      createElement('strong', {}, 'Alterar meus dados'),
+      this.buildField('Seu nome', 'customerName', 'text', true, profile.name),
+      this.buildField('Email (opcional)', 'customerEmail', 'email', false, profile.email),
+      this.buildField('Nick Roblox (opcional)', 'robloxUsername', 'text', false, profile.robloxNick),
+      createElement('div', { class: 'support-profile-actions' }, [
+        createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'cancel-profile-edit' }, 'Cancelar'),
+        createElement('button', { type: 'submit', class: 'button-primary' }, 'Salvar dados')
+      ])
+    ]);
+    form.addEventListener('submit', (event) => this.saveProfileChanges(event));
+    form.querySelector('[data-action="cancel-profile-edit"]').addEventListener('click', () => {
+      this.editingProfile = false;
+      this.replace();
+    });
+    return form;
+  }
+
+  buildField(label, name, type, required, value = '') {
     return createElement('label', { class: 'support-field' }, [
       createElement('span', {}, label),
       createElement('input', {
         name,
         type,
+        value,
         required: required ? 'required' : null,
         autocomplete: name === 'customerName' ? 'name' : name === 'customerEmail' ? 'email' : 'off'
       })
@@ -302,7 +345,8 @@ export class SupportChatWidget {
 
   openPanel() {
     this.open = true;
-    const conversation = this.service.getActiveConversation();
+    let conversation = this.service.getActiveConversation();
+    if (!conversation && this.service.getCustomerProfile()) conversation = this.service.createConversationFromProfile();
     if (conversation) this.service.markAsRead(conversation.id, 'customer');
     this.replace();
   }
@@ -311,6 +355,7 @@ export class SupportChatWidget {
     this.open = false;
     this.error = '';
     this.status = '';
+    this.editingProfile = false;
     this.replace();
   }
 
@@ -327,6 +372,11 @@ export class SupportChatWidget {
       return;
     }
     try {
+      this.service.saveCustomerProfile({
+        name: customerName,
+        email: data.get('customerEmail'),
+        robloxNick: data.get('robloxUsername')
+      });
       const conversation = this.service.createConversation({
         customerName,
         customerEmail: data.get('customerEmail'),
@@ -387,9 +437,31 @@ export class SupportChatWidget {
 
   startNewConversation() {
     this.service.clearActiveConversation();
+    const conversation = this.service.createConversationFromProfile();
     this.error = '';
     this.status = '';
+    this.editingProfile = false;
+    if (!conversation) this.service.clearActiveConversation();
     this.replace();
+  }
+
+  saveProfileChanges(event) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    try {
+      this.service.updateCustomerProfile({
+        name: data.get('customerName'),
+        email: data.get('customerEmail'),
+        robloxNick: data.get('robloxUsername')
+      });
+      this.editingProfile = false;
+      this.status = 'Dados atualizados.';
+      this.replace();
+      this.scheduleStatusClear();
+    } catch (error) {
+      this.error = error.message || 'Não foi possível salvar seus dados.';
+      this.replace();
+    }
   }
 
   scheduleStatusClear() {

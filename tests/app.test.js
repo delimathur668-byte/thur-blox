@@ -45,7 +45,7 @@ import { AuthService } from '../src/services/AuthService.js';
 import { AdminAuthService } from '../src/services/AdminAuthService.js';
 import { InventoryOverrideService } from '../src/services/InventoryOverrideService.js';
 import { CouponAdminService } from '../src/services/CouponAdminService.js';
-import { getSupportBotReply, isActiveSupportConversation, SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
+import { getSupportBotReply, isActiveSupportConversation, SupportService, SUPPORT_ACTIVE_CONVERSATION_KEY, SUPPORT_CUSTOMER_PROFILE_KEY, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
 import { detectSupportIntent, extractOrderCode, extractProductMention, SmartSupportBotService } from '../src/services/SmartSupportBotService.js';
 import { findChatProduct, getChatProductRoute, hasChatPurchaseIntent } from '../src/services/ChatProductSearchService.js';
 import { calculateVipStatus, calculateVipDiscountInCents, getVipStatusForCustomer, isVipEligibleOrder, selectBestDiscount, VIP_OVERRIDES_STORAGE_KEY, VipService } from '../src/services/VipLoyaltyService.js';
@@ -1076,6 +1076,35 @@ test('SupportService accepts a conversation with only name and message', () => {
   assert.equal(restored.messages.at(-1).read, true);
   assert.equal(restoredService.listAdminConversations()[0].id, conversation.id);
   assert.equal(restoredService.getAdminUnreadCount(), 1);
+});
+
+test('support remembers customer profile, active conversation and reuses identity after closing', () => {
+  const storage = createMemoryStorage();
+  const service = new SupportService({ storage, now: () => '2026-07-22T10:00:00.000Z' });
+  const profile = service.saveCustomerProfile({ name: 'Arthur Lima', email: '', robloxNick: 'arthur123' });
+  const first = service.createConversationFromProfile();
+  service.sendMessage(first.id, { senderType: 'customer', senderName: profile.name, body: 'oi' });
+  const firstMessageCount = service.getConversation(first.id).messages.length;
+
+  const reopened = new SupportService({ storage, now: () => '2026-07-22T11:00:00.000Z' });
+  assert.equal(reopened.getActiveConversation().id, first.id);
+  assert.equal(reopened.getActiveConversation().messages.length, firstMessageCount);
+  assert.equal(JSON.parse(storage.getItem(SUPPORT_CUSTOMER_PROFILE_KEY)).name, 'Arthur Lima');
+  assert.equal(storage.getItem(SUPPORT_ACTIVE_CONVERSATION_KEY), first.id);
+
+  reopened.updateCustomerProfile({ name: 'Arthur Lima', email: '', robloxNick: 'arthurNovo' });
+  assert.equal(reopened.getConversation(first.id).robloxUsername, 'arthurNovo');
+  assert.equal(reopened.getConversation(first.id).messages.length, firstMessageCount, 'editing profile must preserve history');
+
+  reopened.closeConversation(first.id);
+  reopened.clearActiveConversation();
+  const next = reopened.createConversationFromProfile();
+  assert.notEqual(next.id, first.id);
+  assert.equal(next.customerName, 'Arthur Lima');
+  assert.equal(next.robloxUsername, 'arthurNovo');
+  assert.equal(next.messages.length, 1, 'initial bot greeting appears once per conversation');
+  assert.equal(reopened.getConversation(first.id).status, 'closed');
+  assert.equal(reopened.listAdminConversations().length, 2);
 });
 
 test('support bot recognizes keywords and never replies to admin messages', () => {

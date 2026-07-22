@@ -1,5 +1,6 @@
 export const SUPPORT_STORAGE_KEY = 'thur_blox_support_store_v1';
 export const SUPPORT_ACTIVE_CONVERSATION_KEY = 'thur_blox_support_active_conversation';
+export const SUPPORT_CUSTOMER_PROFILE_KEY = 'thur_blox_support_customer_profile';
 export const SUPPORT_MESSAGE_MAX_LENGTH = 1000;
 
 export const SUPPORT_STATUS_LABELS = {
@@ -160,6 +161,62 @@ export class SupportService {
     return this.updateStatus(conversationId, 'closed', {
       archived: true,
       archivedAt: this.now()
+    });
+  }
+
+  getCustomerProfile() {
+    if (!this.storage) return null;
+    try {
+      const profile = JSON.parse(this.storage.getItem(SUPPORT_CUSTOMER_PROFILE_KEY) || 'null');
+      if (!profile?.name) return null;
+      return {
+        name: String(profile.name).trim(),
+        email: String(profile.email || '').trim(),
+        robloxNick: String(profile.robloxNick || '').trim(),
+        createdAt: profile.createdAt || this.now(),
+        updatedAt: profile.updatedAt || profile.createdAt || this.now()
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  saveCustomerProfile({ name, email = '', robloxNick = '' } = {}) {
+    const current = this.getCustomerProfile();
+    const profile = {
+      name: normalizeText(name, { required: true, max: 120, label: 'Nome' }),
+      email: normalizeText(email, { max: 160, label: 'Email' }),
+      robloxNick: normalizeText(robloxNick, { max: 80, label: 'Nick Roblox' }),
+      createdAt: current?.createdAt || this.now(),
+      updatedAt: this.now()
+    };
+    this.storage?.setItem(SUPPORT_CUSTOMER_PROFILE_KEY, JSON.stringify(profile));
+    return profile;
+  }
+
+  updateCustomerProfile(input = {}) {
+    const profile = this.saveCustomerProfile(input);
+    const activeId = this.getActiveConversationId();
+    if (!activeId) return profile;
+    const state = this.loadState();
+    const conversation = state.conversations.find((item) => item.id === activeId);
+    if (conversation) {
+      conversation.customerName = profile.name;
+      conversation.customerEmail = profile.email;
+      conversation.robloxUsername = profile.robloxNick;
+      conversation.updatedAt = profile.updatedAt;
+      this.saveState(state);
+    }
+    return profile;
+  }
+
+  createConversationFromProfile() {
+    const profile = this.getCustomerProfile();
+    if (!profile) return null;
+    return this.createConversation({
+      customerName: profile.name,
+      customerEmail: profile.email,
+      robloxUsername: profile.robloxNick
     });
   }
 

@@ -87,6 +87,10 @@ export class SmartSupportBotService {
     const options = RESPONSES[intent] || RESPONSES.unknown;
     const variantIndex = context.lastIntent === intent ? Number(context.intentRepeatCount || 0) % options.length : 0;
     let reply = options[variantIndex].replace('{product}', product);
+    if (intent === 'greeting' && conversation.customerName && !context.customerNameUsed) {
+      const firstName = String(conversation.customerName).trim().split(/\s+/)[0];
+      reply = reply.replace(/^Oi!|^Olá!/, `Oi, ${firstName}!`);
+    }
     if (intent === 'buy_product' && product === 'esse produto') reply = 'Claro. Qual produto você procura? Posso buscar frutas, gamepasses, seeds, pets, gears ou pacotes no catálogo.';
     const orderCode = extractOrderCode(message) || context.orderCode;
     const order = this.findLocalOrder(orderCode);
@@ -114,6 +118,7 @@ export class SmartSupportBotService {
       orderCode: orderCode || previous.orderCode || '',
       wantsHumanSupport: previous.wantsHumanSupport === true || intent === 'support_human',
       securityWarningShown: previous.securityWarningShown === true || shouldShowSecurityWarning(intent),
+      customerNameUsed: previous.customerNameUsed === true || intent === 'greeting',
       intentRepeatCount: previous.lastIntent === intent ? Number(previous.intentRepeatCount || 0) + 1 : 0,
       processedCustomerMessageIds: [...(previous.processedCustomerMessageIds || []).slice(-19), customerMessageId].filter(Boolean)
     };
