@@ -8106,6 +8106,27 @@ body {
   background: linear-gradient(145deg, rgba(216, 255, 0, .11), rgba(45, 45, 45, .96));
 }
 
+.support-message-row.bot:has(.support-product-card) .support-message-bubble { width: min(292px, calc(100% - 40px)); max-width: calc(100% - 40px); }
+.support-product-card { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px; margin-top: 10px; padding: 10px; border: 1px solid rgba(216, 255, 0, .58); border-radius: 10px; background: linear-gradient(145deg, #171b19, #090b0a); box-shadow: 0 0 18px rgba(216, 255, 0, .08); white-space: normal; }
+.support-product-image { width: 62px; height: 62px; border-radius: 8px; object-fit: cover; background: #050708; }
+.support-product-info { min-width: 0; display: grid; gap: 2px; }
+.support-product-info strong { overflow-wrap: anywhere; }
+.support-product-category { color: rgba(255, 255, 255, .62); font-size: .7rem; }
+.support-product-price { color: #d8ff00; font-size: 1rem; }
+.support-product-info small.is-available { color: #86efac; }
+.support-product-info small.is-unavailable { color: #fca5a5; }
+.support-product-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.support-product-actions button, .support-product-actions a, .support-go-cart { min-height: 34px; display: inline-grid; place-items: center; padding: 6px 8px; border: 1px solid rgba(216, 255, 0, .42); border-radius: 7px; background: transparent; color: #fff; font: inherit; font-size: .72rem; font-weight: 900; line-height: 1.1; text-align: center; text-decoration: none; cursor: pointer; }
+.support-product-actions .support-product-add { border-color: #d8ff00; background: #d8ff00; color: #050708; }
+.support-product-actions .support-product-agent { grid-column: 1 / -1; }
+.support-product-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.support-go-cart { min-height: 0; padding: 2px 5px; color: #d8ff00; }
+
+@media (max-width: 420px) {
+  .support-product-actions { grid-template-columns: 1fr; }
+  .support-product-actions .support-product-agent { grid-column: auto; }
+}
+
 .support-success {
   position: absolute;
   z-index: 2;

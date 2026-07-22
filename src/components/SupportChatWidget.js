@@ -1,9 +1,14 @@
 import { SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../services/SupportService.js';
+import { CartService } from '../services/grow-garden-2/CartService.js';
+import { formatMoney } from '../services/grow-garden-2/StoreCommerceService.js';
+import { findChatProduct, getChatProductRoute, hasChatPurchaseIntent } from '../services/ChatProductSearchService.js';
 import { createElement } from './ui-utils.js';
 
 const BOT_AVATAR = '/assets/support/delima-blox-support-bot.png';
 const ADMIN_AVATAR = '/assets/support/delima-blox-support-admin.png';
 const SECURITY_WARNING = 'Nunca envie sua senha, cookie ou código de autenticação do Roblox.';
+const STORE_PRODUCTS_URL = '/src/data/grow-garden-2/store-products.json';
+const PRODUCT_NOT_FOUND_REPLY = 'Não encontrei esse produto ainda. Você pode procurar pela loja ou falar com o suporte.';
 
 export class SupportChatWidget {
   constructor({ service = new SupportService() } = {}) {
@@ -13,6 +18,9 @@ export class SupportChatWidget {
     this.status = '';
     this.statusTimer = null;
     this.element = null;
+    this.products = [];
+    this.cartService = new CartService();
+    this.productsPromise = this.loadProducts();
     this.handleStorageSync = () => {
       if (this.open) this.replace();
     };
@@ -159,6 +167,19 @@ export class SupportChatWidget {
     ]);
   }
 
+  async loadProducts() {
+    try {
+      const response = await fetch(STORE_PRODUCTS_URL);
+      if (!response.ok) throw new Error(`CATALOG_HTTP_${response.status}`);
+      const data = await response.json();
+      this.products = Array.isArray(data.products) ? data.products : [];
+    } catch (error) {
+      console.warn('SUPPORT_PRODUCT_CATALOG_ERROR', error);
+      this.products = [];
+    }
+    return this.products;
+  }
+
   buildMessage(message) {
     const sender = String(message.senderType || message.sender || '').toLowerCase();
     const own = ['customer', 'client', 'user'].includes(sender);
@@ -167,9 +188,60 @@ export class SupportChatWidget {
       own ? null : this.buildAvatar(isBot ? 'bot' : 'admin'),
       createElement('div', { class: 'support-message-bubble' }, [
         createElement('span', { class: 'support-message-name' }, own ? 'Você' : isBot ? 'Assistente Delima Blox' : (message.senderName || 'Admin Delima Blox')),
-        createElement('p', {}, message.body)
+        createElement('p', {}, message.body),
+        message.product ? this.buildProductCard(message.product) : null
       ])
     ]);
+  }
+
+  buildProductCard(product) {
+    const available = product.saleEnabled === true && product.stockStatus !== 'out_of_stock' && Number(product.availableStock) > 0;
+    const card = createElement('article', { class: 'support-product-card', 'data-chat-product': product.slug }, [
+      createElement('img', { class: 'support-product-image', src: product.image, alt: product.name, loading: 'lazy' }),
+      createElement('div', { class: 'support-product-info' }, [
+        createElement('strong', {}, product.name),
+        createElement('span', { class: 'support-product-category' }, `${product.game === 'blox-fruits' ? 'Blox Fruits' : 'Grow a Garden 2'} • ${product.category}`),
+        createElement('b', { class: 'support-product-price' }, formatMoney(product.priceInCents ?? product.salePriceInCents, product.currency || 'BRL')),
+        createElement('small', { class: available ? 'is-available' : 'is-unavailable' }, available ? `Em estoque: ${product.availableStock}` : 'Sem estoque')
+      ]),
+      createElement('div', { class: 'support-product-actions' }, [
+        createElement('button', { type: 'button', class: 'support-product-add', disabled: available ? null : 'disabled' }, available ? 'Adicionar ao carrinho' : 'Indisponível'),
+        createElement('a', { class: 'support-product-view', href: getChatProductRoute(product) }, 'Ver produto'),
+        createElement('button', { type: 'button', class: 'support-product-agent' }, 'Falar com atendente')
+      ])
+    ]);
+    card.querySelector('.support-product-add').addEventListener('click', () => this.addProductToCart(product));
+    card.querySelector('.support-product-agent').addEventListener('click', () => {
+      this.status = 'Sua conversa já está visível para um atendente.';
+      this.replace();
+      this.scheduleStatusClear();
+    });
+    return card;
+  }
+
+  addProductToCart(product) {
+    this.cartService.addItem(product, 1);
+    this.status = 'Produto adicionado ao carrinho.';
+    this.replace();
+    const status = this.element?.querySelector('.support-success');
+    if (status) status.append(' ', createElement('a', { class: 'support-go-cart', href: getChatProductRoute(product, { cart: true }) }, 'Ir para o carrinho'));
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('thur-blox-cart-updated', { detail: { productSlug: product.slug } }));
+    this.scheduleStatusClear();
+  }
+
+  async searchProductForMessage(conversationId, message) {
+    if (!hasChatPurchaseIntent(message)) return;
+    const product = findChatProduct(message, await this.productsPromise);
+    this.service.sendMessage(conversationId, {
+      senderType: 'bot',
+      senderName: 'Assistente Thur Blox',
+      body: product
+        ? `Encontrei ${product.name} por ${formatMoney(product.priceInCents ?? product.salePriceInCents, product.currency || 'BRL')}. Quer adicionar ao carrinho?`
+        : PRODUCT_NOT_FOUND_REPLY,
+      product: product ? { ...product } : null,
+      messageType: product ? 'product_result' : 'product_not_found'
+    });
+    if (this.open) this.replace();
   }
 
   buildAvatar(type, className = 'support-message-avatar') {
@@ -224,6 +296,7 @@ export class SupportChatWidget {
         body: message
       });
       this.service.markAsRead(conversation.id, 'customer');
+      this.searchProductForMessage(conversation.id, message);
       this.status = 'Mensagem enviada';
       this.replace();
       this.scheduleStatusClear();
@@ -250,6 +323,7 @@ export class SupportChatWidget {
         senderName: customerName,
         body: message
       });
+      this.searchProductForMessage(conversationId, message);
       event.currentTarget.reset();
       this.status = 'Mensagem enviada';
       this.replace();

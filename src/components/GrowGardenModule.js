@@ -115,7 +115,7 @@ class OrderServiceError extends Error {
 }
 
 export class GrowGardenModule {
-  constructor({ root, onNavigate, initialTab = 'sementes', initialAdminPanelTab = 'support', adminSession = null, authService = new AuthService(), storeGame = 'grow-garden-2' }) {
+  constructor({ root, onNavigate, initialTab = 'sementes', initialProductSlug = '', initialAdminPanelTab = 'support', adminSession = null, authService = new AuthService(), storeGame = 'grow-garden-2' }) {
     this.root = root;
     this.onNavigate = onNavigate;
     this.authService = authService;
@@ -125,6 +125,7 @@ export class GrowGardenModule {
     this.activeTab = initialTab === 'admin' && !this.authService.isAdminSession(this.adminSession) ? 'sementes' : initialTab;
     this.currentUser = this.authService.getCurrentUser();
     this.selectedSeedSlug = null;
+    this.initialProductSlug = initialProductSlug;
     this.checkoutStateBySeed = new Map();
     this.pendingPixScrollSlug = null;
     this.manualOrders = [];
@@ -190,6 +191,10 @@ export class GrowGardenModule {
     this.editingCouponId = '';
     this.cartService = new CartService({ getProductBySlug: (productSlug) => this.getCartProduct(productSlug) });
     this.cartItems = this.cartService.load();
+    this.handleExternalCartUpdate = () => {
+      this.cartItems = this.cartService.load();
+    };
+    if (typeof window !== 'undefined') window.addEventListener('thur-blox-cart-updated', this.handleExternalCartUpdate);
 
     this.init();
   }
@@ -199,6 +204,12 @@ export class GrowGardenModule {
       const seeds = await this.seedDataService.getAll();
       this.seeds = await this.storeCommerceService.getCatalog(seeds);
       this.storeProducts = this.inventoryOverrideService.applyToProducts(await this.storeCommerceService.getStoreCatalog());
+      const requestedProduct = this.storeProducts.find((product) => product.slug === this.initialProductSlug && (product.game || 'grow-garden-2') === this.storeGame);
+      if (requestedProduct) {
+        this.selectedSeedSlug = requestedProduct.slug;
+        this.storeCategoryFilter = requestedProduct.category;
+        this.activeTab = 'sementes';
+      }
       this.cartItems = this.cartService.save(this.cartItems);
       this.coupons = await this.storeCommerceService.loadCoupons();
       await this.loadUserOrders();
@@ -207,6 +218,11 @@ export class GrowGardenModule {
     } finally {
       this.loading = false;
       this.render();
+      if (this.initialProductSlug) {
+        const productSlug = this.initialProductSlug;
+        window.setTimeout(() => document.querySelector(`[data-seed-slug="${CSS.escape(productSlug)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
+        this.initialProductSlug = '';
+      }
     }
   }
 

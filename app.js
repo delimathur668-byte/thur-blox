@@ -56,6 +56,14 @@ const getRequestedView = () => {
   return ROUTE_VIEW_MAP[path] || 'home';
 };
 
+const getStoreInitialState = () => {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    initialTab: params.get('tab') === 'carrinho' ? 'carrinho' : 'sementes',
+    initialProductSlug: params.get('produto') || ''
+  };
+};
+
 const routeForView = (view) => {
   if (view === 'brainrot') return '/';
   if (view === 'blox-fruits') return '/category/blox-fruits';
@@ -130,9 +138,9 @@ const initialize = async () => {
           authService: state.authService
         });
       } else if (state.currentView === 'grow-garden') {
-        new GrowGardenModule({ root, onNavigate: navigate, adminSession: state.authService.getSession(), authService: state.authService });
+        new GrowGardenModule({ root, onNavigate: navigate, adminSession: state.authService.getSession(), authService: state.authService, ...getStoreInitialState() });
       } else if (state.currentView === 'blox-fruits') {
-        new GrowGardenModule({ root, onNavigate: navigate, adminSession: state.authService.getSession(), authService: state.authService, storeGame: 'blox-fruits' });
+        new GrowGardenModule({ root, onNavigate: navigate, adminSession: state.authService.getSession(), authService: state.authService, storeGame: 'blox-fruits', ...getStoreInitialState() });
       }
     };
 

@@ -90,7 +90,7 @@ export class SupportService {
     return conversation;
   }
 
-  sendMessage(conversationId, { senderType = 'customer', senderName = '', body } = {}) {
+  sendMessage(conversationId, { senderType = 'customer', senderName = '', body, product = null, messageType = '' } = {}) {
     const messageBody = normalizeText(body, { required: true, label: 'Mensagem' });
     const sender = senderType === 'admin' ? 'admin' : senderType === 'system' ? 'system' : senderType === 'bot' ? 'bot' : 'customer';
     const createdAt = this.now();
@@ -99,7 +99,9 @@ export class SupportService {
       senderType: sender,
       senderName: normalizeText(senderName, { max: 120, label: 'Remetente' }),
       body: messageBody,
-      createdAt
+      createdAt,
+      product,
+      messageType
     });
     const state = this.loadState();
     const conversation = state.conversations.find((item) => item.id === conversationId);
@@ -215,7 +217,7 @@ export class SupportService {
     return this.listActiveAdminConversations().reduce((total, conversation) => total + Number(conversation.unreadByAdmin || 0), 0);
   }
 
-  buildMessage({ conversationId, senderType, senderName, body, createdAt }) {
+  buildMessage({ conversationId, senderType, senderName, body, createdAt, product = null, messageType = '' }) {
     return {
       id: createId('msg'),
       conversationId,
@@ -225,7 +227,9 @@ export class SupportService {
       body,
       text: body,
       read: senderType === 'bot',
-      createdAt
+      createdAt,
+      ...(product ? { product } : {}),
+      ...(messageType ? { messageType } : {})
     };
   }
 

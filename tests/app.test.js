@@ -46,6 +46,7 @@ import { AdminAuthService } from '../src/services/AdminAuthService.js';
 import { InventoryOverrideService } from '../src/services/InventoryOverrideService.js';
 import { CouponAdminService } from '../src/services/CouponAdminService.js';
 import { getSupportBotReply, isActiveSupportConversation, SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
+import { findChatProduct, getChatProductRoute, hasChatPurchaseIntent } from '../src/services/ChatProductSearchService.js';
 import { ReviewService, REVIEW_STORAGE_KEY } from '../src/services/ReviewService.js';
 import { OrderStore } from '../server/store/OrderStore.js';
 import { SandboxPixPaymentGateway } from '../server/store/PaymentGateway.js';
@@ -913,6 +914,22 @@ test('SupportService persists conversations and admin replies locally', () => {
   assert.equal(stored.messages.at(-1).senderType, 'admin');
   assert.throws(() => service.sendMessage(conversation.id, { body: '' }), /Mensagem/);
   assert.throws(() => service.sendMessage(conversation.id, { body: 'x'.repeat(SUPPORT_MESSAGE_MAX_LENGTH + 1) }), /maximo/);
+});
+
+test('support quick order recognizes purchase intent and searches both store games', () => {
+  assert.equal(hasChatPurchaseIntent('quero kitsune'), true);
+  assert.equal(hasChatPurchaseIntent('quanto custa a firefly?'), true);
+  assert.equal(hasChatPurchaseIntent('preciso de ajuda'), false);
+
+  const kitsune = findChatProduct('quero kitsune fruit', growGardenStoreProductsData.products);
+  const firefly = findChatProduct('quero firefly', growGardenStoreProductsData.products);
+  const categoryProduct = findChatProduct('tem frutas?', growGardenStoreProductsData.products);
+  assert.equal(kitsune?.slug, 'kitsune-fruit');
+  assert.equal(firefly?.slug, 'firefly');
+  assert.equal(categoryProduct?.game, 'blox-fruits');
+  assert.equal(findChatProduct('quero produto-que-nao-existe', growGardenStoreProductsData.products), null);
+  assert.equal(getChatProductRoute(kitsune), '/category/blox-fruits?produto=kitsune-fruit');
+  assert.equal(getChatProductRoute(firefly, { cart: true }), '/category/grow-a-garden-2?tab=carrinho');
 });
 
 test('Blox Fruits category exposes five Pix products with isolated storefront inventory', () => {
