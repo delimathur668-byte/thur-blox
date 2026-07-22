@@ -8121,6 +8121,12 @@ body {
 .support-product-actions .support-product-agent { grid-column: 1 / -1; }
 .support-product-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .support-go-cart { min-height: 0; padding: 2px 5px; color: #d8ff00; }
+.support-quick-actions { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 5px; scrollbar-width: thin; }
+.support-quick-actions button { flex: 0 0 auto; min-height: 32px; padding: 6px 10px; border: 1px solid rgba(216,255,0,.28); border-radius: 999px; background: rgba(216,255,0,.07); color: #fff; font: inherit; font-size: .72rem; font-weight: 850; cursor: pointer; white-space: nowrap; }
+.support-quick-actions button:hover { border-color: #d8ff00; color: #d8ff00; }
+.support-human-badge, .support-intent-badge { display: inline-flex; width: max-content; padding: 3px 7px; border: 1px solid rgba(57,216,255,.42); border-radius: 999px; background: rgba(57,216,255,.1); color: #7de8ff; font-size: .66rem; font-style: normal; font-weight: 900; }
+.support-human-badge { border-color: rgba(255,212,59,.48); background: rgba(255,212,59,.1); color: #ffd43b; }
+.admin-chat-message .support-intent-badge { margin-top: 6px; }
 
 .vip-card { --vip-color: #b77945; display: grid; gap: 12px; width: 100%; padding: 18px; border: 1px solid color-mix(in srgb, var(--vip-color) 58%, transparent); border-radius: 14px; background: linear-gradient(145deg, color-mix(in srgb, var(--vip-color) 16%, #151616), #0c0e0e 68%); box-shadow: 0 0 24px color-mix(in srgb, var(--vip-color) 12%, transparent); }
 .vip-card.vip-silver, .vip-badge.vip-silver { --vip-color: #c7d0d9; }

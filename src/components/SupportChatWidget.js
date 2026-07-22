@@ -9,6 +9,14 @@ const ADMIN_AVATAR = '/assets/support/delima-blox-support-admin.png';
 const SECURITY_WARNING = 'Nunca envie sua senha, cookie ou código de autenticação do Roblox.';
 const STORE_PRODUCTS_URL = '/src/data/grow-garden-2/store-products.json';
 const PRODUCT_NOT_FOUND_REPLY = 'Não encontrei esse produto ainda. Você pode procurar pela loja ou falar com o suporte.';
+const WELCOME_MESSAGE = 'Olá! Eu sou o Assistente Delima, seu suporte virtual da loja. Posso te ajudar com compra, pagamento Pix, pedido, entrega, produtos ou falar com um atendente. O que você precisa?';
+const QUICK_ACTIONS = [
+  ['Fazer uma compra', 'Quero fazer uma compra'],
+  ['Ver meu pedido', 'Quero ver meu pedido'],
+  ['Já paguei no Pix', 'Já paguei no Pix'],
+  ['Falar com atendente', 'Quero falar com atendente'],
+  ['Problema na entrega', 'Meu pedido não chegou']
+];
 
 export class SupportChatWidget {
   constructor({ service = new SupportService() } = {}) {
@@ -83,7 +91,8 @@ export class SupportChatWidget {
 
   buildStarter() {
     const block = createElement('div', { class: 'support-starter' }, [
-      this.buildSupportBubble('Olá! 👋 Eu sou o assistente da Thur Blox. Como posso ajudar você?'),
+      this.buildSupportBubble(WELCOME_MESSAGE),
+      this.buildQuickActions({ starter: true }),
       createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
       createElement('form', { class: 'support-start-form', novalidate: 'novalidate' }, [
         this.buildField('Seu nome', 'customerName', 'text', true),
@@ -119,6 +128,7 @@ export class SupportChatWidget {
         createElement('span', { class: 'support-messages-end', 'aria-hidden': 'true' })
       ]),
       createElement('div', { class: 'support-conversation-bottom' }, [
+        closed ? null : this.buildQuickActions({ conversation }),
         createElement('p', { class: 'support-warning' }, SECURITY_WARNING),
         closed
           ? createElement('div', { class: 'support-closed-state' }, [
@@ -161,10 +171,43 @@ export class SupportChatWidget {
     return createElement('div', { class: 'support-message-row support' }, [
       this.buildAvatar('bot'),
       createElement('div', { class: 'support-message-bubble' }, [
-        createElement('span', { class: 'support-message-name' }, 'Assistente Delima Blox'),
+        createElement('span', { class: 'support-message-name' }, 'Assistente Delima'),
         createElement('p', {}, text)
       ])
     ]);
+  }
+
+  buildQuickActions({ starter = false, conversation = null } = {}) {
+    const actions = createElement('div', { class: 'support-quick-actions', 'aria-label': 'Opções rápidas' }, QUICK_ACTIONS.map(([label, message]) => (
+      createElement('button', { type: 'button', 'data-quick-message': message }, label)
+    )));
+    actions.querySelectorAll('[data-quick-message]').forEach((button) => button.addEventListener('click', () => {
+      const message = button.getAttribute('data-quick-message');
+      if (starter) {
+        const form = actions.closest('.support-starter')?.querySelector('form');
+        if (form?.elements.message) {
+          form.elements.message.value = message;
+          this.updateSubmitState(form);
+          form.elements.message.focus();
+        }
+        return;
+      }
+      if (conversation) this.sendQuickMessage(conversation, message);
+    }));
+    return actions;
+  }
+
+  sendQuickMessage(conversation, message) {
+    try {
+      this.service.sendMessage(conversation.id, { senderType: 'customer', senderName: conversation.customerName, body: message });
+      this.searchProductForMessage(conversation.id, message);
+      this.status = 'Mensagem enviada';
+      this.replace();
+      this.scheduleStatusClear();
+    } catch (error) {
+      this.error = error.message || 'Não foi possível enviar a mensagem.';
+      this.replace();
+    }
   }
 
   async loadProducts() {
@@ -187,7 +230,7 @@ export class SupportChatWidget {
     return createElement('div', { class: `support-message-row ${own ? 'customer' : isBot ? 'bot' : 'admin'}` }, [
       own ? null : this.buildAvatar(isBot ? 'bot' : 'admin'),
       createElement('div', { class: 'support-message-bubble' }, [
-        createElement('span', { class: 'support-message-name' }, own ? 'Você' : isBot ? 'Assistente Delima Blox' : (message.senderName || 'Admin Delima Blox')),
+        createElement('span', { class: 'support-message-name' }, own ? 'Você' : isBot ? 'Assistente Delima' : (message.senderName || 'Admin Delima Blox')),
         createElement('p', {}, message.body),
         message.product ? this.buildProductCard(message.product) : null
       ])
@@ -207,14 +250,13 @@ export class SupportChatWidget {
       createElement('div', { class: 'support-product-actions' }, [
         createElement('button', { type: 'button', class: 'support-product-add', disabled: available ? null : 'disabled' }, available ? 'Adicionar ao carrinho' : 'Indisponível'),
         createElement('a', { class: 'support-product-view', href: getChatProductRoute(product) }, 'Ver produto'),
-        createElement('button', { type: 'button', class: 'support-product-agent' }, 'Falar com atendente')
+        createElement('button', { type: 'button', class: 'support-product-agent' }, 'Continuar falando com suporte')
       ])
     ]);
     card.querySelector('.support-product-add').addEventListener('click', () => this.addProductToCart(product));
     card.querySelector('.support-product-agent').addEventListener('click', () => {
-      this.status = 'Sua conversa já está visível para um atendente.';
-      this.replace();
-      this.scheduleStatusClear();
+      const conversation = this.service.getActiveConversation();
+      if (conversation) this.sendQuickMessage(conversation, 'Quero falar com atendente');
     });
     return card;
   }
@@ -234,7 +276,7 @@ export class SupportChatWidget {
     const product = findChatProduct(message, await this.productsPromise);
     this.service.sendMessage(conversationId, {
       senderType: 'bot',
-      senderName: 'Assistente Thur Blox',
+      senderName: 'Assistente Delima',
       body: product
         ? `Encontrei ${product.name} por ${formatMoney(product.priceInCents ?? product.salePriceInCents, product.currency || 'BRL')}. Quer adicionar ao carrinho?`
         : PRODUCT_NOT_FOUND_REPLY,

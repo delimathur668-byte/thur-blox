@@ -46,6 +46,7 @@ import { AdminAuthService } from '../src/services/AdminAuthService.js';
 import { InventoryOverrideService } from '../src/services/InventoryOverrideService.js';
 import { CouponAdminService } from '../src/services/CouponAdminService.js';
 import { getSupportBotReply, isActiveSupportConversation, SupportService, SUPPORT_MESSAGE_MAX_LENGTH } from '../src/services/SupportService.js';
+import { detectSupportIntent, extractOrderCode, extractProductMention, SmartSupportBotService } from '../src/services/SmartSupportBotService.js';
 import { findChatProduct, getChatProductRoute, hasChatPurchaseIntent } from '../src/services/ChatProductSearchService.js';
 import { calculateVipStatus, calculateVipDiscountInCents, getVipStatusForCustomer, isVipEligibleOrder, selectBestDiscount, VIP_OVERRIDES_STORAGE_KEY, VipService } from '../src/services/VipLoyaltyService.js';
 import { ReviewService, REVIEW_STORAGE_KEY } from '../src/services/ReviewService.js';
@@ -1079,10 +1080,10 @@ test('SupportService accepts a conversation with only name and message', () => {
 
 test('support bot recognizes keywords and never replies to admin messages', () => {
   assert.match(getSupportBotReply('oi'), /bem-vindo/i);
-  assert.match(getSupportBotReply('já paguei no Pix'), /pagamento via Pix/i);
+  assert.match(getSupportBotReply('já paguei no Pix'), /código do pedido/i);
   assert.match(getSupportBotReply('meu pedido não chegou'), /código do pedido/i);
-  assert.match(getSupportBotReply('deu erro e travou'), /Registrei seu problema/i);
-  assert.match(getSupportBotReply('uma dúvida diferente'), /Mensagem recebida/i);
+  assert.match(getSupportBotReply('deu erro e travou'), /escolha uma opção/i);
+  assert.match(getSupportBotReply('uma dúvida diferente'), /escolha uma opção/i);
 
   const storage = createMemoryStorage();
   const service = new SupportService({ storage, now: () => '2026-07-21T12:00:00.000Z' });
@@ -1093,12 +1094,61 @@ test('support bot recognizes keywords and never replies to admin messages', () =
   assert.equal(messages.at(-1).senderType, 'admin');
 });
 
+test('smart support bot detects intents, keeps context and requests human support safely', () => {
+  const cases = [
+    ['oi', 'greeting'],
+    ['quero comprar kitsune', 'buy_product'],
+    ['quanto custa dragon', 'ask_price'],
+    ['paguei no pix', 'payment_done'],
+    ['meu pedido não chegou', 'delivery_problem'],
+    ['quero falar com atendente', 'support_human'],
+    ['passei o nick errado', 'wrong_nick'],
+    ['minha senha é 123', 'security_warning'],
+    ['quero reembolso', 'refund']
+  ];
+  cases.forEach(([message, intent]) => assert.equal(detectSupportIntent(message), intent, message));
+  assert.equal(extractProductMention('tem Kitsune Fruit?'), 'kitsune fruit');
+  assert.equal(extractOrderCode('pedido THUR-ABC123'), 'THUR-ABC123');
+
+  const bot = new SmartSupportBotService({ storage: createMemoryStorage() });
+  const conversation = { context: {} };
+  const first = bot.processCustomerMessage(conversation, 'paguei no pix', { customerMessageId: 'msg-1' });
+  conversation.context = first.context;
+  const repeated = bot.processCustomerMessage(conversation, 'paguei no pix', { customerMessageId: 'msg-2' });
+  assert.equal(first.intent, 'payment_done');
+  assert.notEqual(first.body, repeated.body);
+  assert.equal(bot.processCustomerMessage(conversation, 'paguei no pix', { customerMessageId: 'msg-1' }), null);
+
+  const orderStorage = createMemoryStorage();
+  orderStorage.setItem('thur_blox_local_orders', JSON.stringify({ orders: [{ orderCode: 'THUR-ABC123', paymentStatus: 'confirmed', orderStatus: 'paid' }] }));
+  const orderBot = new SmartSupportBotService({ storage: orderStorage });
+  const orderReply = orderBot.processCustomerMessage({ context: {} }, 'qual o status do pedido THUR-ABC123?', { customerMessageId: 'order-1' });
+  assert.match(orderReply.body, /já pode ser processado/i);
+
+  const storage = createMemoryStorage();
+  const service = new SupportService({ storage, now: () => '2026-07-22T12:00:00.000Z' });
+  const created = service.createConversation({ customerName: 'Cliente IA' });
+  service.sendMessage(created.id, { senderType: 'customer', body: 'quero falar com atendente' });
+  const stored = service.getConversation(created.id);
+  assert.equal(stored.needsHuman, true);
+  assert.equal(stored.context.wantsHumanSupport, true);
+  assert.equal(stored.context.lastIntent, 'support_human');
+  assert.equal(stored.messages.at(-2).intent, 'support_human');
+  assert.equal(stored.messages.at(-1).intent, 'support_human');
+  assert.equal(growGardenModuleCode.includes('Precisa de humano'), true);
+  const messageCount = stored.messages.length;
+  assert.equal(new SupportService({ storage }).getConversation(created.id).messages.length, messageCount, 'reload must not duplicate bot messages');
+});
+
 test('closed support conversation can be cleared without deleting admin history', () => {
   const storage = createMemoryStorage();
   const service = new SupportService({ storage, now: () => '2026-07-21T12:00:00.000Z' });
   const oldConversation = service.createConversation({ customerName: 'Cliente antigo' });
   service.sendMessage(oldConversation.id, { senderType: 'customer', body: 'Primeiro atendimento.' });
   service.closeConversation(oldConversation.id);
+  const closedMessageCount = service.getConversation(oldConversation.id).messages.length;
+  assert.throws(() => service.sendMessage(oldConversation.id, { senderType: 'customer', body: 'Mensagem depois de fechar.' }), /fechada/);
+  assert.equal(service.getConversation(oldConversation.id).messages.length, closedMessageCount);
 
   service.clearActiveConversation();
   assert.equal(service.getActiveConversation(), null);

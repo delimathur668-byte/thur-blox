@@ -3561,7 +3561,8 @@ export class GrowGardenModule {
 
   buildAdminSupportSection() {
     const conversations = this.supportService.listActiveAdminConversations().sort((a, b) => (
-      this.getSupportCustomerVip(b).level.discountPercent - this.getSupportCustomerVip(a).level.discountPercent
+      Number(b.needsHuman === true) - Number(a.needsHuman === true)
+      || this.getSupportCustomerVip(b).level.discountPercent - this.getSupportCustomerVip(a).level.discountPercent
       || String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
     ));
     const selectedId = conversations.some((conversation) => conversation.id === this.selectedSupportConversationId)
@@ -3617,7 +3618,7 @@ export class GrowGardenModule {
     }, [
       createElement('span', { class: 'admin-support-avatar' }, this.getSupportInitials(conversation.customerName)),
       createElement('span', { class: 'admin-support-card-copy' }, [
-        createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip), ['gold', 'diamond'].includes(vip.level.id) ? createElement('span', { class: 'vip-priority-label' }, 'Prioridade') : null]),
+        createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip), ['gold', 'diamond'].includes(vip.level.id) ? createElement('span', { class: 'vip-priority-label' }, 'Prioridade') : null, conversation.needsHuman ? createElement('span', { class: 'support-human-badge' }, 'Precisa de humano') : null]),
         createElement('small', {}, [
           conversation.customerEmail ? createElement('span', {}, conversation.customerEmail) : null,
           conversation.robloxUsername ? createElement('span', {}, `@${conversation.robloxUsername}`) : null
@@ -3639,7 +3640,7 @@ export class GrowGardenModule {
     return createElement('article', { class: 'admin-support-detail' }, [
       createElement('div', { class: 'admin-support-detail-top' }, [
         createElement('div', {}, [
-          createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip), ['gold', 'diamond'].includes(vip.level.id) ? createElement('span', { class: 'vip-priority-label' }, 'Prioridade') : null]),
+          createElement('strong', {}, [conversation.customerName, this.buildVipBadge(vip), ['gold', 'diamond'].includes(vip.level.id) ? createElement('span', { class: 'vip-priority-label' }, 'Prioridade') : null, conversation.needsHuman ? createElement('span', { class: 'support-human-badge' }, 'Precisa de humano') : null]),
           createElement('span', {}, [
             conversation.customerEmail || 'Email nao informado',
             conversation.robloxUsername ? ` · @${conversation.robloxUsername}` : ''
@@ -3706,6 +3707,7 @@ export class GrowGardenModule {
     row.append(createElement('div', { class: `admin-chat-message ${senderClass}` }, [
       createElement('span', {}, isCustomer ? 'Cliente' : isBot ? 'Assistente Delima Blox' : 'Admin Delima Blox'),
       createElement('p', {}, message.body),
+      message.intent ? createElement('em', { class: 'support-intent-badge' }, `Intenção: ${message.intent}`) : null,
       createElement('small', {}, this.formatSupportDate(message.createdAt))
     ]));
     return row;

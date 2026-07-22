@@ -9,25 +9,11 @@ export const SUPPORT_STATUS_LABELS = {
   closed: 'Fechado'
 };
 
-const INITIAL_SUPPORT_MESSAGE = 'Olá! 👋 Eu sou o assistente da Thur Blox. Como posso ajudar você?';
-
-const BOT_REPLIES = {
-  payment: 'Obrigado pelo aviso! Se você já realizou o pagamento via Pix, aguarde a confirmação do pedido. Não envie dados sensíveis como senha, cookie ou código de autenticação.',
-  order: 'Para ajudar mais rápido, envie o código do pedido e seu nick do Roblox. Assim a equipe consegue localizar sua compra.',
-  problem: 'Entendi. Registrei seu problema. Envie mais detalhes ou print, se possível, para a equipe verificar melhor.',
-  greeting: 'Olá! Seja bem-vindo ao suporte da Thur Blox. Me diga como posso ajudar.',
-  fallback: 'Mensagem recebida! Nossa equipe vai responder assim que possível.'
-};
-
-const normalizeForBot = (value) => String(value || '').toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
+export const INITIAL_SUPPORT_MESSAGE = 'Olá! Eu sou o Assistente Delima, seu suporte virtual da loja. Posso te ajudar com compra, pagamento Pix, pedido, entrega, produtos ou falar com um atendente. O que você precisa?';
 export const getSupportBotReply = (message) => {
-  const text = normalizeForBot(message);
-  if (['pix', 'paguei', 'pagamento', 'qr code', 'copia e cola', 'comprovante'].some((keyword) => text.includes(keyword))) return BOT_REPLIES.payment;
-  if (['pedido', 'entrega', 'entregar', 'recebi', 'nao chegou', 'produto'].some((keyword) => text.includes(keyword))) return BOT_REPLIES.order;
-  if (['erro', 'bug', 'problema', 'nao consigo', 'falhou', 'travou'].some((keyword) => text.includes(keyword))) return BOT_REPLIES.problem;
-  if (['oi', 'ola', 'bom dia', 'boa tarde', 'boa noite'].some((keyword) => new RegExp(`(^|\\s)${keyword}(\\s|[!,.?]|$)`).test(text))) return BOT_REPLIES.greeting;
-  return BOT_REPLIES.fallback;
+  const bot = new SmartSupportBotService({ storage: null });
+  const intent = bot.detectIntent(message);
+  return bot.buildBotReply(intent, {}, message);
 };
 
 const nowIso = () => new Date().toISOString();
@@ -51,9 +37,10 @@ const getDefaultStorage = () => {
 };
 
 export class SupportService {
-  constructor({ storage = getDefaultStorage(), now = nowIso } = {}) {
+  constructor({ storage = getDefaultStorage(), now = nowIso, botService = null } = {}) {
     this.storage = storage;
     this.now = now;
+    this.botService = botService || new SmartSupportBotService({ storage });
   }
 
   createConversation({ customerName, customerEmail = '', robloxUsername = '', orderContext = null } = {}) {
@@ -65,7 +52,7 @@ export class SupportService {
     const greeting = this.buildMessage({
       conversationId: id,
       senderType: 'bot',
-      senderName: 'Assistente Thur Blox',
+      senderName: 'Assistente Delima',
       body: INITIAL_SUPPORT_MESSAGE,
       createdAt
     });
@@ -81,6 +68,15 @@ export class SupportService {
       lastMessageAt: createdAt,
       unreadByAdmin: 0,
       unreadByCustomer: 0,
+      needsHuman: false,
+      context: {
+        lastIntent: 'greeting',
+        mentionedProductId: '',
+        orderCode: '',
+        wantsHumanSupport: false,
+        securityWarningShown: false,
+        processedCustomerMessageIds: []
+      },
       messages: [greeting]
     };
     const state = this.loadState();
@@ -117,13 +113,21 @@ export class SupportService {
     } else if (sender === 'customer') {
       conversation.status = conversation.messages.some((item) => item.senderType === 'admin') ? 'awaiting_admin' : 'new';
       conversation.unreadByAdmin = Number(conversation.unreadByAdmin || 0) + 1;
-      conversation.messages.push(this.buildMessage({
-        conversationId,
-        senderType: 'bot',
-        senderName: 'Assistente Thur Blox',
-        body: getSupportBotReply(messageBody),
-        createdAt
-      }));
+      const result = this.botService.processCustomerMessage(conversation, messageBody, { customerMessageId: message.id });
+      if (result) {
+        message.intent = result.intent;
+        conversation.context = result.context;
+        conversation.needsHuman = conversation.needsHuman === true || result.needsHuman;
+        conversation.messages.push(this.buildMessage({
+          conversationId,
+          senderType: 'bot',
+          senderName: 'Assistente Delima',
+          body: result.body,
+          createdAt,
+          messageType: 'smart_bot_reply',
+          intent: result.intent
+        }));
+      }
     }
     this.saveState(state);
     return message;
@@ -217,7 +221,7 @@ export class SupportService {
     return this.listActiveAdminConversations().reduce((total, conversation) => total + Number(conversation.unreadByAdmin || 0), 0);
   }
 
-  buildMessage({ conversationId, senderType, senderName, body, createdAt, product = null, messageType = '' }) {
+  buildMessage({ conversationId, senderType, senderName, body, createdAt, product = null, messageType = '', intent = '' }) {
     return {
       id: createId('msg'),
       conversationId,
@@ -229,7 +233,8 @@ export class SupportService {
       read: senderType === 'bot',
       createdAt,
       ...(product ? { product } : {}),
-      ...(messageType ? { messageType } : {})
+      ...(messageType ? { messageType } : {}),
+      ...(intent ? { intent } : {})
     };
   }
 
@@ -261,3 +266,4 @@ export class SupportService {
     }
   }
 }
+import { SmartSupportBotService } from './SmartSupportBotService.js';
