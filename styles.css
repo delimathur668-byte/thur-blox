@@ -11999,3 +11999,37 @@ body {
     animation: none;
   }
 }
+/* Store categories open directly on products */
+.garden-storefront.storefront-direct {
+  gap: clamp(22px, 2.5vw, 34px);
+}
+
+.garden-storefront.storefront-direct .store-controls {
+  margin-top: 0;
+}
+
+.garden-storefront.storefront-direct .store-sections {
+  gap: clamp(34px, 4vw, 54px);
+}
+
+.garden-storefront.storefront-direct .store-category-section {
+  gap: 20px;
+}
+
+.garden-storefront.storefront-direct .store-toolbar-top {
+  align-items: end;
+}
+
+@media (max-width: 640px) {
+  .garden-storefront.storefront-direct {
+    gap: 18px;
+  }
+
+  .garden-storefront.storefront-direct .store-sections {
+    gap: 30px;
+  }
+
+  .garden-storefront.storefront-direct .store-category-section {
+    gap: 16px;
+  }
+}

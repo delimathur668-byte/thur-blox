@@ -299,35 +299,6 @@ export class GrowGardenModule {
     return header;
   }
 
-  buildHero() {
-    const hero = createElement('section', { class: 'garden-hero panel' }, [
-      createElement('div', { class: 'garden-hero-copy' }, [
-        createElement('span', { class: 'garden-kicker' }, this.storeGameConfig.title),
-        createElement('h1', {}, this.storeGameConfig.heroTitle),
-        createElement('p', {}, this.storeGameConfig.heroDescription),
-        createElement('div', { class: 'garden-hero-actions' }, [
-          createElement('button', { type: 'button', class: 'button-primary', 'data-action': 'see-store' }, 'Explorar loja'),
-          createElement('button', { type: 'button', class: 'button-secondary', 'data-action': 'see-catalog' }, this.storeGameConfig.catalogLabel)
-        ]),
-        this.buildCompactStoreStatus()
-      ]),
-      createElement('div', { class: 'garden-hero-art' }, [
-        createElement('div', { class: 'garden-showcase' }, [
-          createElement('img', { class: 'category-hero-image', src: this.storeGameConfig.heroImage, alt: `Categoria ${this.storeGameConfig.title}` })
-        ])
-      ])
-    ]);
-    hero.querySelector('[data-action="see-store"]').addEventListener('click', () => {
-      this.activeTab = 'sementes';
-      this.render();
-    });
-    hero.querySelector('[data-action="see-catalog"]').addEventListener('click', () => {
-      this.activeTab = 'catalogo';
-      this.render();
-    });
-    return hero;
-  }
-
   buildTabs() {
     const tabs = createElement('nav', { class: 'garden-tabs' });
     const cartCount = this.getCartCount();
@@ -696,14 +667,8 @@ export class GrowGardenModule {
       })
       .filter(Boolean);
 
-    return createElement('div', { class: 'garden-storefront' }, [
-      this.buildHero(),
+    return createElement('div', { class: 'garden-storefront storefront-direct' }, [
       this.buildStoreControls(),
-      this.storeGame === 'blox-fruits' ? createElement('aside', { class: 'garden-welcome panel', role: 'note' }, [
-        createElement('strong', {}, 'Compra segura'),
-        createElement('p', {}, 'Nunca envie sua senha, cookie ou código de autenticação.'),
-        createElement('small', {}, 'A Thur/Delima Blox não é afiliada oficialmente à Roblox, Blox Fruits ou qualquer jogo citado.')
-      ]) : null,
       categorySections.length > 0
         ? createElement('div', { class: 'store-sections' }, categorySections)
         : this.buildEmptyState('Nenhum produto encontrado', 'Ajuste a busca ou o filtro de categoria.')
