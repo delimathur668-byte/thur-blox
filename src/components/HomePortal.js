@@ -110,7 +110,7 @@ const GAME_CARDS = [
     number: '01',
     label: 'FRUTAS & SERVIÇOS',
     title: 'BLOX FRUITS',
-    subtitle: 'Encontre frutas, contas, gamepasses, serviços e pacotes para sua jornada.',
+    subtitle: 'Frutas, contas, gamepasses, serviços e pacotes.',
     image: PORTAL_CARD_IMAGES['blox-fruits'],
     alt: 'Arte original da categoria Blox Fruits',
     tags: ['Frutas', 'Kitsune', 'Dragon', 'Leopard', 'Dough', 'Contas', 'Gamepasses', 'Serviços', 'Pacotes'],
@@ -123,7 +123,7 @@ const GAME_CARDS = [
     number: '02',
     label: 'SEMENTES & PETS',
     title: 'GROW A GARDEN',
-    subtitle: 'Encontre sementes, equipamentos e pets para fazer seu jardim evoluir.',
+    subtitle: 'Veja seeds, pets, gears e pacotes disponíveis.',
     image: PORTAL_CARD_IMAGES['grow-garden'],
     alt: 'Capa do jogo Grow a Garden 2',
     tags: ['Seeds', 'Pets', 'Gears', 'Pacotes', 'Firefly', 'Sun Bloom', 'Star Fruit'],
@@ -1376,16 +1376,35 @@ export class HomePortal {
   }
 
   buildHero() {
-    return createElement('section', { class: 'portal-hero', 'aria-labelledby': 'portal-hero-title' }, [
+    const hero = createElement('section', { class: 'portal-hero commercial-hero', 'aria-labelledby': 'portal-hero-title' }, [
       createElement('div', { class: 'portal-hero-copy' }, [
-        createElement('span', { class: 'portal-kicker' }, 'DOIS MUNDOS. UM SÓ PORTAL.'),
         createElement('h1', { id: 'portal-hero-title' }, [
-          createElement('span', {}, 'ESCOLHA SEU'),
-          createElement('span', { class: 'portal-gradient-title' }, 'PRÓXIMO UNIVERSO')
+          createElement('span', {}, 'TUDO MAIS'),
+          createElement('span', {}, 'FÁCIL NO THUR'),
+          createElement('span', {}, 'BLOX!')
         ]),
-        createElement('p', {}, 'Uma experiência feita para encontrar itens, comparar valores e descobrir novidades sem perder tempo.')
-      ])
+        createElement('p', {}, 'Encontre produtos digitais dos seus jogos favoritos em um só lugar.'),
+        this.buildCategoryPill()
+      ]),
+      createElement('div', { class: 'portal-hero-art' }, [
+        createElement('div', { class: 'portal-showcase commercial-showcase', 'aria-hidden': 'true' }, [
+          createElement('div', { class: 'portal-showcase-card garden-showcase-card' }, [
+            createElement('img', { src: PORTAL_CARD_IMAGES['grow-garden'], alt: '', class: 'portal-showcase-image garden-showcase' })
+          ]),
+          createElement('div', { class: 'portal-showcase-card blox-fruits-showcase-card' }, [
+            createElement('img', { src: PORTAL_CARD_IMAGES['blox-fruits'], alt: '', class: 'portal-showcase-image blox-fruits-showcase' })
+          ]),
+          createElement('div', { class: 'portal-showcase-logo-card' }, [
+            createElement('img', { src: APP_LOGO, alt: '', class: 'portal-showcase-logo' })
+          ])
+        ])
+      ]),
+      createElement('button', { type: 'button', class: 'hero-scroll-button', 'data-action': 'see-games-secondary', 'aria-label': 'Descer para categorias' }, '')
     ]);
+    hero.querySelectorAll('[data-action^="see-games"]').forEach((button) => {
+      button.addEventListener('click', () => this.scrollToGames());
+    });
+    return hero;
   }
 
   buildCategoryPill() {
@@ -1396,12 +1415,8 @@ export class HomePortal {
   }
 
   buildGamesSection() {
-    const section = createElement('section', { class: 'portal-games', 'aria-labelledby': 'portal-games-title' }, [
-      createElement('div', { class: 'portal-section-divider' }, [
-        createElement('span', {}, ''),
-        createElement('h2', { id: 'portal-games-title' }, 'ESCOLHA SEU UNIVERSO'),
-        createElement('span', {}, '')
-      ]),
+    const section = createElement('section', { class: 'portal-games commercial-games', 'aria-labelledby': 'portal-games-title' }, [
+      createElement('h2', { id: 'portal-games-title', class: 'visually-hidden' }, 'Categorias de jogos'),
       createElement('div', { class: 'portal-game-grid' }, GAME_CARDS.map((card) => this.buildGameCard(card))),
       createElement('p', { class: 'portal-search-empty', hidden: 'hidden' }, 'Nenhuma categoria encontrada.')
     ]);
@@ -1411,31 +1426,24 @@ export class HomePortal {
     return section;
   }
 
-  buildGameCard({ slug, number, label, title, subtitle, image, alt, tags, action, tone, maintenanceLabel }) {
+  buildGameCard({ slug, title, subtitle, image, alt, tags, action, tone, maintenanceLabel }) {
     const searchText = [title, subtitle, ...tags].join(' ').toLowerCase();
     const card = createElement('button', {
       type: 'button',
-      class: `portal-game-card ${tone}-card ${maintenanceLabel ? 'is-maintenance' : ''}`,
+      class: `portal-game-card commercial-game-card ${tone}-card ${maintenanceLabel ? 'is-maintenance' : ''}`,
       'aria-label': `${action}: ${title}`,
       'data-search-text': searchText
     }, [
-      createElement('div', { class: 'game-card-meta' }, [
-        createElement('span', {}, number),
-        createElement('span', {}, label)
+      createElement('div', { class: 'game-card-image' }, [
+        createElement('img', { src: image, alt, class: 'portal-card-image' })
       ]),
       createElement('div', { class: 'game-card-body' }, [
         maintenanceLabel ? createElement('span', { class: 'game-card-status' }, maintenanceLabel) : null,
-        createElement('span', { class: 'game-card-eyebrow' }, 'UNIVERSO'),
         createElement('strong', {}, title),
         createElement('p', {}, subtitle),
         createElement('span', { class: 'game-card-action' }, [
-          createElement('span', {}, action),
+          createElement('span', {}, 'Ver produtos'),
           createElement('span', { class: 'action-arrow', 'aria-hidden': 'true' }, '')
-        ])
-      ]),
-      createElement('div', { class: 'game-card-visual', 'aria-hidden': 'true' }, [
-        createElement('span', { class: 'game-card-orbit' }, [
-          createElement('img', { src: image, alt: '', class: 'portal-card-image' })
         ])
       ])
     ]);
