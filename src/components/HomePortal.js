@@ -107,23 +107,27 @@ const buildPortalIcon = (name, className = 'portal-inline-icon') => {
 const GAME_CARDS = [
   {
     slug: 'blox-fruits',
+    number: '01',
+    label: 'FRUTAS & SERVIÇOS',
     title: 'BLOX FRUITS',
-    subtitle: 'Frutas, contas, gamepasses, serviços e pacotes para sua jornada.',
+    subtitle: 'Encontre frutas, contas, gamepasses, serviços e pacotes para sua jornada.',
     image: PORTAL_CARD_IMAGES['blox-fruits'],
     alt: 'Arte original da categoria Blox Fruits',
     tags: ['Frutas', 'Kitsune', 'Dragon', 'Leopard', 'Dough', 'Contas', 'Gamepasses', 'Serviços', 'Pacotes'],
-    action: 'Ver produtos',
+    action: 'EXPLORAR BLOX FRUITS',
     icon: 'BF',
     tone: 'blox-fruits'
   },
   {
     slug: 'grow-garden',
-    title: 'GROW A GARDEN 2',
-    subtitle: 'Veja seeds, pets, gears e pacotes disponíveis nesta categoria.',
+    number: '02',
+    label: 'SEMENTES & PETS',
+    title: 'GROW A GARDEN',
+    subtitle: 'Encontre sementes, equipamentos e pets para fazer seu jardim evoluir.',
     image: PORTAL_CARD_IMAGES['grow-garden'],
     alt: 'Capa do jogo Grow a Garden 2',
     tags: ['Seeds', 'Pets', 'Gears', 'Pacotes', 'Firefly', 'Sun Bloom', 'Star Fruit'],
-    action: 'Ver produtos',
+    action: 'EXPLORAR GARDEN',
     icon: 'GG',
     tone: 'garden'
   }
@@ -131,19 +135,19 @@ const GAME_CARDS = [
 
 const BENEFITS = [
   {
-    icon: 'send',
-    title: 'Envio rápido',
-    text: 'Receba seu pedido após a confirmação do pagamento.'
+    icon: '01',
+    title: 'Organização',
+    text: 'Tudo separado por universos para facilitar sua navegação.'
   },
   {
-    icon: 'headphones',
-    title: 'Suporte eficiente',
-    text: 'Fale com nosso suporte pelo chat do próprio site.'
+    icon: '02',
+    title: 'Praticidade',
+    text: 'Entre direto na área que você quer sem confusão.'
   },
   {
-    icon: 'shield',
-    title: 'Compra segura',
-    text: 'Nunca pedimos senha, cookie ou código de autenticação.'
+    icon: '03',
+    title: 'Evolução',
+    text: 'O portal foi criado para crescer com novas áreas e novas lojas.'
   }
 ];
 
@@ -279,8 +283,7 @@ export class HomePortal {
         this.buildHero(),
         this.buildGamesSection(),
         this.buildBenefitsSection(),
-        this.buildReviewsSection(),
-        this.buildFaqSection(),
+        this.buildFinalCta(),
         this.buildFooter()
       ];
     const container = createElement('div', { class: 'home-portal' }, [
@@ -297,23 +300,18 @@ export class HomePortal {
 
   buildTopbar() {
     const header = createElement('header', { class: 'portal-topbar home-topbar' }, [
-      createElement('div', { class: 'portal-brand' }, [
+      createElement('a', { class: 'portal-brand', href: '/', 'aria-label': 'Thur Blox — início' }, [
         createElement('div', { class: 'portal-icon trade-hub-logo', 'aria-hidden': 'true' }, [
           createElement('img', { src: APP_LOGO, alt: '', class: 'app-logo-image' })
         ]),
         createElement('div', { class: 'portal-brand-copy' }, [
           createElement('strong', {}, 'THUR BLOX'),
-          createElement('small', {}, 'Loja digital Roblox')
+          createElement('small', {}, 'PORTAL GAMER')
         ])
       ]),
-      createElement('label', { class: 'portal-search', 'aria-label': 'Buscar produto' }, [
-        createElement('span', { class: 'portal-search-icon', 'aria-hidden': 'true' }, ''),
-        createElement('input', {
-          type: 'search',
-          placeholder: 'Buscar produto',
-          value: this.searchTerm,
-          autocomplete: 'off'
-        })
+      createElement('nav', { class: 'portal-nav', 'aria-label': 'Navegação principal' }, [
+        createElement('button', { type: 'button', 'data-action': 'nav-universes' }, 'Universos'),
+        createElement('button', { type: 'button', 'data-action': 'nav-about' }, 'Sobre o portal')
       ]),
       createElement('div', { class: 'portal-actions' }, [
         this.session
@@ -325,15 +323,19 @@ export class HomePortal {
         createElement('button', { type: 'button', class: 'button-secondary header-action-button cart-button', 'data-action': 'cart', 'aria-label': 'Abrir carrinho' }, [
           buildPortalIcon('cart', 'portal-inline-icon cart-button-icon'),
           createElement('span', {}, 'Carrinho')
+        ]),
+        createElement('span', { class: 'preview-badge' }, [
+          createElement('span', { 'aria-hidden': 'true' }, ''),
+          'PRÉVIA'
         ])
       ])
     ]);
 
-    header.querySelector('.portal-search input').addEventListener('input', (event) => {
-      this.searchTerm = event.target.value;
-      this.applyCategoryFilter();
-    });
     header.querySelector('[data-action="cart"]').addEventListener('click', () => this.onSelect('grow-garden'));
+    header.querySelector('[data-action="nav-universes"]').addEventListener('click', () => this.scrollToGames());
+    header.querySelector('[data-action="nav-about"]').addEventListener('click', () => {
+      this.benefitsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     header.querySelector('[data-action="open-login"]')?.addEventListener('click', () => this.openLoginModal());
     header.querySelector('[data-action="toggle-user-menu"]')?.addEventListener('click', () => {
       this.userMenuOpen = !this.userMenuOpen;
@@ -1374,35 +1376,16 @@ export class HomePortal {
   }
 
   buildHero() {
-    const hero = createElement('section', { class: 'portal-hero' }, [
+    return createElement('section', { class: 'portal-hero', 'aria-labelledby': 'portal-hero-title' }, [
       createElement('div', { class: 'portal-hero-copy' }, [
-        createElement('h1', {}, 'TUDO MAIS FÁCIL NO THUR BLOX!'),
-        createElement('p', {}, 'Encontre produtos digitais dos seus jogos favoritos em um só lugar.'),
-        createElement('button', { type: 'button', class: 'button-primary hero-cta', 'data-action': 'see-games', 'aria-label': 'Ir para categorias' }, [
-          createElement('span', { class: 'category-button-icon', 'aria-hidden': 'true' }, ''),
-          createElement('span', {}, 'Categorias')
-        ])
-      ]),
-      createElement('div', { class: 'portal-hero-art' }, [
-        createElement('div', { class: 'portal-showcase', 'aria-hidden': 'true' }, [
-          createElement('div', { class: 'portal-showcase-card garden-showcase-card' }, [
-            createElement('img', { src: PORTAL_CARD_IMAGES['grow-garden'], alt: '', class: 'portal-showcase-image garden-showcase' })
-          ]),
-          createElement('div', { class: 'portal-showcase-card blox-fruits-showcase-card' }, [
-            createElement('img', { src: PORTAL_CARD_IMAGES['blox-fruits'], alt: '', class: 'portal-showcase-image blox-fruits-showcase' })
-          ]),
-          createElement('div', { class: 'portal-showcase-logo-card' }, [
-            createElement('img', { src: APP_LOGO, alt: '', class: 'portal-showcase-logo' })
-          ])
-        ])
-      ]),
-      createElement('button', { type: 'button', class: 'hero-scroll-button', 'data-action': 'see-games-secondary', 'aria-label': 'Descer para categorias' }, '')
+        createElement('span', { class: 'portal-kicker' }, 'DOIS MUNDOS. UM SÓ PORTAL.'),
+        createElement('h1', { id: 'portal-hero-title' }, [
+          createElement('span', {}, 'ESCOLHA SEU'),
+          createElement('span', { class: 'portal-gradient-title' }, 'PRÓXIMO UNIVERSO')
+        ]),
+        createElement('p', {}, 'Uma experiência feita para encontrar itens, comparar valores e descobrir novidades sem perder tempo.')
+      ])
     ]);
-
-    hero.querySelectorAll('[data-action^="see-games"]').forEach((button) => {
-      button.addEventListener('click', () => this.scrollToGames());
-    });
-    return hero;
   }
 
   buildCategoryPill() {
@@ -1414,7 +1397,11 @@ export class HomePortal {
 
   buildGamesSection() {
     const section = createElement('section', { class: 'portal-games', 'aria-labelledby': 'portal-games-title' }, [
-      createElement('h2', { id: 'portal-games-title', class: 'visually-hidden' }, 'Categorias'),
+      createElement('div', { class: 'portal-section-divider' }, [
+        createElement('span', {}, ''),
+        createElement('h2', { id: 'portal-games-title' }, 'ESCOLHA SEU UNIVERSO'),
+        createElement('span', {}, '')
+      ]),
       createElement('div', { class: 'portal-game-grid' }, GAME_CARDS.map((card) => this.buildGameCard(card))),
       createElement('p', { class: 'portal-search-empty', hidden: 'hidden' }, 'Nenhuma categoria encontrada.')
     ]);
@@ -1424,7 +1411,7 @@ export class HomePortal {
     return section;
   }
 
-  buildGameCard({ slug, title, subtitle, image, alt, tags, action, icon, tone, maintenanceLabel }) {
+  buildGameCard({ slug, number, label, title, subtitle, image, alt, tags, action, tone, maintenanceLabel }) {
     const searchText = [title, subtitle, ...tags].join(' ').toLowerCase();
     const card = createElement('button', {
       type: 'button',
@@ -1432,17 +1419,23 @@ export class HomePortal {
       'aria-label': `${action}: ${title}`,
       'data-search-text': searchText
     }, [
-      createElement('div', { class: 'game-card-image' }, [
-        createElement('img', { src: image, alt, class: 'portal-card-image' })
+      createElement('div', { class: 'game-card-meta' }, [
+        createElement('span', {}, number),
+        createElement('span', {}, label)
       ]),
       createElement('div', { class: 'game-card-body' }, [
         maintenanceLabel ? createElement('span', { class: 'game-card-status' }, maintenanceLabel) : null,
-        createElement('span', { class: 'game-card-icon', 'aria-hidden': 'true' }, icon),
+        createElement('span', { class: 'game-card-eyebrow' }, 'UNIVERSO'),
         createElement('strong', {}, title),
         createElement('p', {}, subtitle),
         createElement('span', { class: 'game-card-action' }, [
           createElement('span', {}, action),
           createElement('span', { class: 'action-arrow', 'aria-hidden': 'true' }, '')
+        ])
+      ]),
+      createElement('div', { class: 'game-card-visual', 'aria-hidden': 'true' }, [
+        createElement('span', { class: 'game-card-orbit' }, [
+          createElement('img', { src: image, alt: '', class: 'portal-card-image' })
         ])
       ])
     ]);
@@ -1452,9 +1445,18 @@ export class HomePortal {
 
   buildBenefitsSection() {
     const section = createElement('section', { class: 'portal-benefits', 'aria-labelledby': 'portal-benefits-title' }, [
-      createElement('h2', { id: 'portal-benefits-title', class: 'visually-hidden' }, 'Benefícios'),
+      createElement('div', { class: 'portal-section-divider discover-divider' }, [
+        createElement('span', {}, ''),
+        createElement('small', {}, 'DESCUBRA O PORTAL'),
+        createElement('span', {}, '')
+      ]),
+      createElement('div', { class: 'portal-about-heading' }, [
+        createElement('span', {}, 'SOBRE O PORTAL'),
+        createElement('h2', { id: 'portal-benefits-title' }, 'Tudo no lugar certo.'),
+        createElement('p', {}, 'Uma entrada simples e elegante para cada experiência do Thur Blox.')
+      ]),
       createElement('div', { class: 'portal-benefits-grid' }, BENEFITS.map((benefit) => createElement('article', { class: 'portal-benefit-item' }, [
-        createElement('span', { class: 'benefit-icon', 'data-icon': benefit.icon, 'aria-hidden': 'true' }, ''),
+        createElement('span', { class: 'benefit-icon', 'aria-hidden': 'true' }, benefit.icon),
         createElement('div', {}, [
           createElement('strong', {}, benefit.title),
           createElement('p', {}, benefit.text)
@@ -1462,6 +1464,22 @@ export class HomePortal {
       ])))
     ]);
     this.benefitsSection = section;
+    return section;
+  }
+
+  buildFinalCta() {
+    const section = createElement('section', { class: 'portal-final-cta', 'aria-labelledby': 'portal-cta-title' }, [
+      createElement('span', { class: 'portal-kicker' }, 'CONTINUE SUA JORNADA'),
+      createElement('h2', { id: 'portal-cta-title' }, 'Pronto para explorar?'),
+      createElement('p', {}, 'Escolha seu universo e continue sua jornada dentro do Thur Blox.'),
+      createElement('div', { class: 'portal-cta-actions' }, [
+        createElement('button', { type: 'button', class: 'portal-cta-button blox-fruits-cta', 'data-universe': 'blox-fruits' }, 'Explorar Blox Fruits'),
+        createElement('button', { type: 'button', class: 'portal-cta-button garden-cta', 'data-universe': 'grow-garden' }, 'Explorar Grow a Garden')
+      ])
+    ]);
+    section.querySelectorAll('[data-universe]').forEach((button) => {
+      button.addEventListener('click', () => this.onSelect(button.dataset.universe));
+    });
     return section;
   }
 
